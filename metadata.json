@@ -1,0 +1,5 @@
+{
+  "name": "Life RPG: Obsidian Edition",
+  "description": "A gamified dashboard that parses your Markdown task lists and tracks XP, Levels, and Skills in a RuneScape-inspired interface.",
+  "requestFramePermissions": []
+}
