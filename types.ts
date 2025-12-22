@@ -49,13 +49,22 @@ export interface GridItem {
   id: string;
 }
 
+export type BaseLayoutItem = GridItem;
+
+export type ActionType =
+  | 'IDLE' | 'COMBAT' | 'MAGIC' | 'WOODCUTTING' | 'LIFTING'
+  | 'READING' | 'DOG_TRAINING' | 'FARMING' | 'COOKING' | 'CRAFTING'
+  | 'MUSIC' | 'RUNNING' | 'LANGUAGE' | 'ART' | 'HOUSEHOLD'
+  | 'SCOUT' | 'MEDITATE' | 'WRITE' | 'CODE' | 'TEA' | 'GARDEN'
+  | 'DOG' | 'CAT' | 'SPIRIT' | 'XP' | 'FLOW' | 'FOCUS'
+  | 'WALK' | 'SIT' | 'SLEEP'; // Keeping previous ones just in case
+
 export interface BuildingDef {
   id: string;
   name: string;
   icon: string;
   color: string;
   description: string;
-  unlockLevel?: number; // Automatic unlock instead of purchase
 }
 
 export interface HabitDefinition {
@@ -82,6 +91,7 @@ export interface DailyStats {
   date: string;
   totalXp: number;
   skills: Record<string, number>;
+  primarySkill?: string;
 }
 
 export interface LifeRPGData {

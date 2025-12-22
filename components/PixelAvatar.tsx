@@ -1,7 +1,7 @@
 
 import React from 'react';
 
-export type ActionType = 'IDLE' | 'COMBAT' | 'MAGIC' | 'WOODCUTTING' | 'LIFTING' | 'READING' | 'DOG_TRAINING' | 'FARMING' | 'COOKING' | 'CRAFTING' | 'MUSIC' | 'RUNNING' | 'LANGUAGE' | 'ART' | 'HOUSEHOLD' | 'SCOUT' | 'MEDITATE' | 'WRITE' | 'CODE' | 'TEA' | 'GARDEN' | 'DOG' | 'CAT' | 'SPIRIT' | 'XP' | 'FLOW' | 'FOCUS';
+import { ActionType } from '../types';
 
 interface PixelAvatarProps {
     action: ActionType;

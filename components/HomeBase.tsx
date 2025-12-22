@@ -27,12 +27,12 @@ const getIsoCoords = (x: number, y: number) => {
 
 const getTerrainStyle = (t: TerrainType) => {
     switch (t) {
-        case 'GRASS': return { top: 'var(--background-modifier-success)', side: '#2f4018' };
-        case 'WATER': return { top: '#356877', side: '#1b363d' };
-        case 'SAND': return { top: '#d4b859', side: '#8a7638' };
-        case 'MOUNTAIN': return { top: '#585858', side: '#2b2b2b' };
-        case 'SNOW': return { top: '#e0f0ff', side: '#a3b8cc' };
-        default: return { top: 'var(--background-primary-alt)', side: 'var(--background-modifier-border)' };
+        case 'GRASS': return { top: '#f4f1ea', side: '#e5e5e5' }; // Washi Paper (Base)
+        case 'WATER': return { top: '#e0e7ff', side: '#c7d2fe' }; // Ink Wash Blue
+        case 'SAND': return { top: '#fef3c7', side: '#fde68a' }; // Warm Paper
+        case 'MOUNTAIN': return { top: '#525252', side: '#262626' }; // Sumi Ink Stone
+        case 'SNOW': return { top: '#ffffff', side: '#f3f4f6' };
+        default: return { top: '#f4f1ea', side: '#e5e5e5' };
     }
 };
 
@@ -58,7 +58,7 @@ const HomeBase: React.FC<HomeBaseProps> = ({ gameState, backgroundImage, avatarA
     const getItemAt = (x: number, y: number) => gameState.baseLayout.find(i => i.x === x && i.y === y);
 
     return (
-        <div className="h-[600px] w-full relative overflow-hidden bg-[var(--background-primary)] rounded-3xl border border-[var(--background-modifier-border)] shadow-inner group">
+        <div className="h-[600px] w-full relative overflow-hidden bg-transparent rounded-3xl border border-sanctuary-border group">
             <div
                 className="absolute inset-0 transition-opacity duration-1000"
                 style={{
@@ -160,9 +160,9 @@ const HomeBase: React.FC<HomeBaseProps> = ({ gameState, backgroundImage, avatarA
             </div>
 
             <div className="absolute bottom-8 left-8 right-8 flex justify-between items-end pointer-events-none">
-                <div className="p-6 bg-[var(--background-secondary)]/40 backdrop-blur-md rounded-2xl border border-[var(--background-modifier-border)] pointer-events-auto">
-                    <h3 className="text-xl font-serif italic text-[var(--text-normal)] mb-1">Sanctuary Level {Math.floor(gameState.stats.level)}</h3>
-                    <div className="text-xs text-[var(--text-muted)] tracking-widest uppercase">
+                <div className="p-6 bg-white/40 backdrop-blur-md rounded-2xl border border-sanctuary-border pointer-events-auto">
+                    <h3 className="text-xl font-serif italic text-sanctuary-ink mb-1">Sanctuary Level {Math.floor(gameState.skills.reduce((acc, s) => acc + s.level, 0))}</h3>
+                    <div className="text-xs text-sanctuary-inkLight tracking-widest uppercase">
                         Current Zone: The Clearing
                     </div>
                 </div>

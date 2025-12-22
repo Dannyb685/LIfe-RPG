@@ -30,21 +30,21 @@ const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ stats, onDayClick }) 
   }
 
   const getIntensity = (xp: number) => {
-    if (xp === 0) return 'bg-stone-100/50';
-    if (xp < 50) return 'bg-emerald-100';
-    if (xp < 100) return 'bg-emerald-300';
-    if (xp < 200) return 'bg-emerald-500';
-    return 'bg-emerald-700 shadow-sm';
+    if (xp === 0) return 'bg-sanctuary-ink/5';
+    if (xp < 50) return 'bg-sanctuary-green/20';
+    if (xp < 100) return 'bg-sanctuary-green/40';
+    if (xp < 200) return 'bg-sanctuary-green/70';
+    return 'bg-sanctuary-green shadow-sm';
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-stone-200 p-8 w-full overflow-x-auto">
+    <div className="bg-white/60 rounded-xl shadow-soft border border-sanctuary-border p-8 w-full overflow-x-auto backdrop-blur-sm">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-light text-stone-700 flex items-center gap-2">
-          <i className="fa-solid fa-calendar-days text-stone-400"></i>
+        <h2 className="text-xl font-light font-serif italic text-sanctuary-ink flex items-center gap-2">
+          <i className="fa-solid fa-calendar-days text-sanctuary-inkLight"></i>
           Chronicle of Growth
         </h2>
-        <div className="text-xs font-mono text-stone-400 uppercase tracking-widest">
+        <div className="text-xs font-mono text-sanctuary-inkLight uppercase tracking-widest">
           Last 12 Months
         </div>
       </div>
@@ -64,14 +64,14 @@ const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ stats, onDayClick }) 
               onClick={() => onDayClick && onDayClick(dateStr)}
             >
               <div
-                className={`w-3 h-3 rounded-[2px] ${getIntensity(xp)} transition-colors duration-300 hover:ring-2 hover:ring-stone-300`}
+                className={`w-3 h-3 rounded-[1px] ${getIntensity(xp)} transition-colors duration-300 hover:ring-1 hover:ring-sanctuary-gold`}
               ></div>
               {/* Tooltip */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max bg-stone-800 text-white p-2 rounded text-xs z-50 hidden group-hover:block pointer-events-none shadow-lg">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max bg-sanctuary-ink text-white p-2 rounded text-xs z-50 hidden group-hover:block pointer-events-none shadow-lg font-sans">
                 <div className="font-bold">{dateStr}</div>
                 <div>{xp.toLocaleString()} XP</div>
                 {stat?.primarySkill && (
-                  <div className="text-stone-400 italic">{stat.primarySkill}</div>
+                  <div className="text-sanctuary-border italic">{stat.primarySkill}</div>
                 )}
               </div>
             </div>
@@ -79,14 +79,14 @@ const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ stats, onDayClick }) 
         })}
       </div>
 
-      <div className="mt-8 flex justify-end items-center gap-2 text-[10px] text-stone-400 font-mono uppercase tracking-widest">
+      <div className="mt-8 flex justify-end items-center gap-2 text-[10px] text-sanctuary-inkLight font-mono uppercase tracking-widest">
         <span>Less</span>
         <div className="flex gap-1">
-          <div className="w-3 h-3 rounded-[2px] bg-stone-100/50"></div>
-          <div className="w-3 h-3 rounded-[2px] bg-emerald-100"></div>
-          <div className="w-3 h-3 rounded-[2px] bg-emerald-300"></div>
-          <div className="w-3 h-3 rounded-[2px] bg-emerald-500"></div>
-          <div className="w-3 h-3 rounded-[2px] bg-emerald-700"></div>
+          <div className="w-3 h-3 rounded-[1px] bg-sanctuary-ink/5"></div>
+          <div className="w-3 h-3 rounded-[1px] bg-sanctuary-green/20"></div>
+          <div className="w-3 h-3 rounded-[1px] bg-sanctuary-green/40"></div>
+          <div className="w-3 h-3 rounded-[1px] bg-sanctuary-green/70"></div>
+          <div className="w-3 h-3 rounded-[1px] bg-sanctuary-green"></div>
         </div>
         <span>More</span>
       </div>

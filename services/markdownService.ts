@@ -1,6 +1,6 @@
 
 import { App, TFile, CachedMetadata } from "obsidian";
-import { SKILL_TREE, SOURCE_MAPPING } from "../data/skillTree";
+import { SKILL_DEFINITIONS, HABIT_DEFINITIONS } from "../constants";
 import { GameState, Skill, Task } from "../types";
 
 /**
@@ -68,6 +68,33 @@ export const parseFileContent = async (app: App, file: TFile, skillXpMap: Record
         processSource(key, value, skillXpMap, unknownSources, customMappings);
     }
 
+    // --- NEW: Writing XP (Creativity/Writing) ---
+    // 1 XP per 100 characters
+    const charCount = content.length;
+    const writingXp = Math.floor(charCount / 100);
+    if (writingXp > 0) {
+        // Find writing skill ID
+        const writingId = Object.values(SKILL_DEFINITIONS).find(s => s.name === 'Expression')?.id || 'writing';
+        skillXpMap[writingId] = (skillXpMap[writingId] || 0) + writingXp;
+    }
+
+    // --- NEW: Tag-based XP ---
+    // Scan for all tags in the file and award bonus XP
+    // Simplified Tag Mapping logic using SKILL_DEFINITIONS categories if possible
+    const tagRegex = /#([a-zA-Z0-9_\-]+)/g;
+    const uniqueTags = new Set<string>();
+    let tagMatch;
+    while ((tagMatch = tagRegex.exec(content)) !== null) {
+        uniqueTags.add(tagMatch[1].toLowerCase());
+    }
+
+    // Fallback Tag Logic (Since we removed TAG_MAPPING import)
+    uniqueTags.forEach(tag => {
+        if (tag === 'pro') skillXpMap['strength'] = (skillXpMap['strength'] || 0) + 10;
+        // ... add more if needed or rely on custom mappings
+    });
+
+
     // We also need to process Frontmatter again here if we want to be safe, 
     // but the cache handled it above.
 
@@ -109,14 +136,27 @@ const processSource = (sourceKey: string, value: any, skillXpMap: Record<string,
     // Skip internal keys
     if (['tags', 'cssclasses', 'date', 'aliases', 'position'].includes(sourceKey.toLowerCase())) return;
 
-    // Check Custom Mappings FIRST, then Hardcoded
-    const config = customMappings[sourceKey] || SOURCE_MAPPING[sourceKey];
+    // Check Custom Mappings FIRST, then Hardcoded from constants
+    // For now, we try to match key to HABIT_DEFINITIONS
+    const habitDef = HABIT_DEFINITIONS.find(h => h.key === sourceKey);
 
-    if (!config) {
+    // const config = customMappings[sourceKey] || SOURCE_MAPPING[sourceKey];
+
+    if (!habitDef && !customMappings[sourceKey]) {
         // Track unknown source frequency
         unknownSources[sourceKey] = (unknownSources[sourceKey] || 0) + 1;
         return;
     }
+
+    const config = customMappings[sourceKey] ? {
+        skillId: customMappings[sourceKey].skillId,
+        xpPerUnit: customMappings[sourceKey].xpPerUnit,
+        type: customMappings[sourceKey].type || 'COUNT'
+    } : {
+        skillId: habitDef!.skillId,
+        xpPerUnit: habitDef!.xpPerUnit,
+        type: habitDef!.isBinary ? 'COMPLETION' : 'COUNT'
+    };
 
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return; // Only dealing with numeric habits for now
@@ -143,7 +183,7 @@ const processSource = (sourceKey: string, value: any, skillXpMap: Record<string,
 };
 
 const initializeSkills = (): Skill[] => {
-    return Object.values(SKILL_TREE).map(def => ({
+    return Object.values(SKILL_DEFINITIONS).map(def => ({
         id: def.id,
         name: def.name,
         level: 1,

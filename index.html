@@ -4,22 +4,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Life RPG: OSRS Edition</title>
+    <title>Life RPG: Sanctuary</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
-    <!-- Fonts -->
+    <!-- Fonts: Noto Serif Display (Headings) + Lato (Body) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Noto+Serif+Display:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
 
     <script>
-        // Polyfill process.env for browser environment to prevent ReferenceErrors
-        window.process = {
-            env: {
-                NODE_ENV: 'development'
-            }
-        };
+        // Polyfill process.env
+        window.process = { env: { NODE_ENV: 'development' } };
     </script>
 
     <script>
@@ -27,36 +23,23 @@
             theme: {
                 extend: {
                     colors: {
-                        osrs: {
-                            bg: '#1e1e1e', 
-                            panel: '#3e3226', // Wood base
-                            inset: '#2c241b', // Darker wood
-                            border: '#5d5447', 
-                            gold: '#ffff00', 
-                            orange: '#ff981f', 
-                            red: '#cc2222', 
-                            green: '#00ff00', 
+                        sanctuary: {
+                            paper: '#f4f1ea', // Washi
+                            ink: '#2b2b2b',   // Sumi
+                            inkLight: '#4a4a4a',
+                            red: '#bd4b4b',   // Hanko
+                            green: '#5d7c65', // Bamboo
+                            gold: '#d4b859',  // Kintsugi
+                            border: '#e5e5e5',
                         },
-                        parchment: '#e3d5ca',
-                        wood: {
-                            light: '#5c4033',
-                            dark: '#3e3226',
-                            black: '#231c16'
-                        }
                     },
                     fontFamily: {
-                        fantasy: ['"Cinzel Decorative"', 'serif'],
-                        pixel: ['"VT323"', 'monospace'],
-                        sans: ['"VT323"', 'monospace'], // Override default sans to pixel for this theme
+                        serif: ['"Noto Serif Display"', 'serif'],
+                        sans: ['"Lato"', 'sans-serif'],
                     },
                     boxShadow: {
-                        'osrs': 'inset 2px 2px 0px rgba(255, 255, 255, 0.1), inset -2px -2px 0px rgba(0, 0, 0, 0.5), 4px 4px 0px rgba(0,0,0,0.5)',
-                        'osrs-inset': 'inset 4px 4px 0px rgba(0,0,0,0.6), 1px 1px 0px rgba(255,255,255,0.1)',
-                        'voxel': '1px 1px 0 #1a1a1a, 2px 2px 0 #1a1a1a, 3px 3px 0 #1a1a1a, 4px 4px 0 #1a1a1a'
-                    },
-                    dropShadow: {
-                        'text': '1px 1px 0 #000',
-                        'text-lg': '2px 2px 0 #000'
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'ink': '0 1px 3px rgba(0,0,0,0.1)',
                     }
                 }
             }
@@ -84,52 +67,40 @@
 }
 </script>
 <style>
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar {
-        width: 14px;
-        background: #231c16;
+    /* Global Paper Texture Overlay */
+    body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: #f4f1ea;
+        opacity: 0.97; /* Tint */
+        z-index: -2;
+        pointer-events: none;
     }
-    ::-webkit-scrollbar-track {
-        background: #231c16;
-        border-left: 2px solid #5d5447;
-    }
-    ::-webkit-scrollbar-thumb {
-        background: #5d5447; 
-        border: 2px solid #8b7355;
-        border-radius: 2px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-        background: #8b7355; 
-    }
-
-    /* Wood Texture */
-    .bg-wood-pattern {
-        background-color: #3e3226;
-        background-image: 
-            repeating-linear-gradient(90deg, transparent, transparent 4px, rgba(0,0,0,0.2) 4px, rgba(0,0,0,0.2) 5px),
-            linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.4) 100%);
-    }
-
-    /* Parchment Texture */
-    .bg-parchment-pattern {
-        background-color: #e3d5ca;
-        background-image: url("https://www.transparenttextures.com/patterns/aged-paper.png");
-        box-shadow: inset 0 0 100px rgba(0,0,0,0.3);
+    
+    /* Noise Texture (Pure CSS) */
+    body::after {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+        z-index: -1;
+        pointer-events: none;
     }
 
-    /* Stone Texture */
-    .bg-stone-pattern {
-        background-color: #4a4a4a;
-        background-image: url("https://www.transparenttextures.com/patterns/dark-matter.png");
-    }
-
-    /* Isometric Base Tile */
-    .iso-block {
-        position: relative;
-    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #e5e5e5; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #d1d1d1; }
 </style>
 </head>
-  <body class="bg-[#0b0b0b] text-[#2c241b] overflow-hidden font-pixel text-lg antialiased selection:bg-osrs-orange selection:text-white">
+  <body class="text-sanctuary-ink font-sans antialiased overflow-hidden selection:bg-sanctuary-red selection:text-white">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
   </body>

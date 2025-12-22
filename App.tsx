@@ -17,6 +17,7 @@ import WeatherOverlay from './components/WeatherOverlay';
 import { motion } from 'framer-motion';
 import HomeBase from './components/HomeBase';
 import ErrorBoundary from './components/ErrorBoundary';
+import FocusTimer from './components/FocusTimer';
 
 // Props passed from main.ts
 interface AppProps {
@@ -43,11 +44,11 @@ const NAV_ITEMS = [
 
 const POMODORO_DEFAULT = 25 * 60;
 
-// --- THEME ADAPTATION ---
-const ZEN_BG = "bg-[var(--background-primary)]";
-const ZEN_TEXT = "text-[var(--text-normal)]";
-const ZEN_ACCENT = "text-[var(--interactive-accent)]";
-const ZEN_BORDER = "border-[var(--background-modifier-border)]";
+// --- THEME ADAPTATION (Sanctuary) ---
+const ZEN_BG = "bg-transparent"; // Handled by body::before
+const ZEN_TEXT = "text-sanctuary-ink";
+const ZEN_ACCENT = "text-sanctuary-red";
+const ZEN_BORDER = "border-sanctuary-border";
 
 const App: React.FC<AppProps> = ({ app, plugin }) => {
     // State
@@ -72,19 +73,25 @@ const App: React.FC<AppProps> = ({ app, plugin }) => {
     const [assetBasePath, setAssetBasePath] = useState<string>('');
 
     useEffect(() => {
-        // Create a dummy path to resolve the folder URL
-        // trick: resolve a dummy file in the assets dir, then strip the filename
-        const dummyPath = `${plugin.manifest.dir}/assets/zen_garden_bg.png`;
-        const resolved = app.vault.adapter.getResourcePath(dummyPath);
-        // resolved: "app://.../assets/zen_garden_bg.png?12345"
-        // We want: "app://.../assets"
+        // Safe Asset Path Handling
+        if (process.env.NODE_ENV === 'development') {
+            // In local dev, assets are served from /assets relative to root
+            setAssetBasePath('./assets');
+            return;
+        }
 
-        // Remove query params
-        const cleanPath = resolved.split('?')[0];
-        // Remove filename
-        const basePath = cleanPath.substring(0, cleanPath.lastIndexOf('/'));
+        // Obsidian Environment Logic
+        if (!plugin?.manifest?.dir) return;
 
-        setAssetBasePath(basePath);
+        try {
+            const dummyPath = `${plugin.manifest.dir}/assets/zen_garden_bg.png`;
+            const resolved = app.vault.adapter.getResourcePath(dummyPath);
+            const cleanPath = resolved.split('?')[0];
+            const basePath = cleanPath.substring(0, cleanPath.lastIndexOf('/'));
+            setAssetBasePath(basePath);
+        } catch (e) {
+            console.error("Failed to resolve asset path:", e);
+        }
     }, [plugin]);
 
     // --- DATA LOADING & SYNC ---
@@ -210,32 +217,33 @@ const App: React.FC<AppProps> = ({ app, plugin }) => {
     if (!gameState) return <div className={`flex items-center justify-center h-screen ${ZEN_BG} ${ZEN_TEXT}`}>Loading Sanctuary...</div>;
 
     return (
-        <div className={`flex flex-col h-full font-serif ${ZEN_BG} ${ZEN_TEXT} overflow-hidden selection:bg-[var(--text-selection)] relative`}>
+        <div className={`flex flex-col h-full font-sans ${ZEN_BG} ${ZEN_TEXT} overflow-hidden selection:bg-sanctuary-red selection:text-white relative`}>
             <WeatherOverlay />
 
             {/* MAIN CONTENT AREA */}
             <div className="flex-1 overflow-y-auto relative scroll-smooth">
                 {/* MINIMAL HEADER */}
-                <div className="h-20 flex items-center justify-between px-12 sticky top-0 z-30 pointer-events-none">
-                    <div className="text-xl italic text-[var(--text-muted)] font-light pointer-events-auto">
-                        Cultivate your inner garden.
+                <div className="h-24 flex items-center justify-center sticky top-0 z-30 pointer-events-none">
+                    <div className="text-2xl font-serif text-sanctuary-ink font-light italic tracking-widest pointer-events-auto opacity-80">
+                        the sanctuary
                     </div>
                 </div>
 
                 {/* APP VIEWS */}
                 <div className="pb-32 min-h-full">
                     <ErrorBoundary>
-                        <div className="max-w-7xl mx-auto px-4 sm:px-8">
+                        <div className="max-w-4xl mx-auto px-4 sm:px-8">
                             {activeTab === Tab.TASKS && (
                                 <div className="space-y-12 animate-fade-in py-12">
                                     <div className="flex flex-col items-center mb-12">
-                                        <h1 className="text-5xl font-serif text-[var(--text-normal)] mb-2 italic">the chronicle</h1>
-                                        <p className="text-[var(--text-muted)] tracking-[0.2em] uppercase text-xs">
+                                        <h1 className="text-4xl font-serif text-sanctuary-ink mb-2">The Chronicle</h1>
+                                        <div className="w-12 h-1 bg-sanctuary-red/20 mb-4 rounded-full"></div>
+                                        <p className="text-sanctuary-inkLight tracking-[0.1em] text-sm uppercase">
                                             {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
                                         </p>
                                     </div>
                                     <TaskList
-                                        title="Active Tasks"
+                                        title="Today's Intentions"
                                         tasks={gameState.tasks && gameState.tasks.length > 0 ? gameState.tasks : [
                                             { id: 'mock-1', description: 'Debug: Meditate for 10 min', completed: false, xpReward: 50, skillTag: 'mind', filename: 'Mock', isHabit: true, currentValue: 0, targetValue: 10 },
                                             { id: 'mock-2', description: 'Debug: Write journal entry', completed: true, xpReward: 20, skillTag: 'create', filename: 'Mock', isHabit: false }
@@ -252,45 +260,46 @@ const App: React.FC<AppProps> = ({ app, plugin }) => {
                                         backgroundImage={bgUrl}
                                         avatarAction="IDLE"
                                         assetBasePath={assetBasePath}
+                                        onInteraction={(id) => console.log(id)}
                                     />
                                 </div>
                             )}
 
                             {activeTab === Tab.FOCUS && (
-                                <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-12 animate-fade-in py-12">
-                                    <div className="text-9xl font-mono tracking-tighter text-[var(--text-normal)] opacity-80">
-                                        {formatTime(timerSeconds)}
-                                    </div>
-
-                                    <div className="flex flex-col items-center gap-8">
-                                        <button
-                                            onClick={() => setTimerActive(!timerActive)}
-                                            className="px-12 py-4 rounded-full bg-[var(--interactive-accent)] text-white font-bold hover:scale-105 transition-transform"
-                                        >
-                                            {timerActive ? 'pause' : 'begin'}
-                                        </button>
-
-                                        <div className="text-sm font-mono text-[var(--text-muted)] tracking-widest uppercase">
-                                            <i className="fas fa-bolt text-yellow-500 mr-2"></i>
-                                            Potential: +50 Focus XP
-                                        </div>
-                                    </div>
+                                <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 animate-fade-in py-12">
+                                    <FocusTimer
+                                        skills={gameState.skills || []}
+                                        isActive={timerActive}
+                                        mode={timerMode}
+                                        seconds={timerSeconds}
+                                        selectedSkillId={gameState.skills?.[0]?.id || 'strength'}
+                                        onToggle={() => setTimerActive(!timerActive)}
+                                        onStop={() => {
+                                            setTimerActive(false);
+                                            setTimerSeconds(POMODORO_DEFAULT);
+                                            // Handle completion TODO
+                                        }}
+                                        onModeChange={(m) => setTimerMode(m)}
+                                        onSkillChange={(id) => console.log(id)}
+                                        assetBasePath={assetBasePath}
+                                    />
                                 </div>
                             )}
 
                             {activeTab === Tab.STORY && (
                                 <div className="space-y-12 animate-fade-in py-12">
                                     <div className="flex flex-col items-center mb-12">
-                                        <h1 className="text-5xl font-serif text-[var(--text-normal)] mb-2 italic">the journey</h1>
-                                        <p className="text-[var(--text-muted)] tracking-[0.2em] uppercase text-xs">
+                                        <h1 className="text-4xl font-serif text-sanctuary-ink mb-2">The Journey</h1>
+                                        <div className="w-12 h-1 bg-sanctuary-red/20 mb-4 rounded-full"></div>
+                                        <p className="text-sanctuary-inkLight tracking-[0.1em] text-sm uppercase">
                                             Level {gameState?.skills?.find(s => s.id === 'SCHOLAR')?.level || 1} Scholar
                                         </p>
                                     </div>
-                                    <div className="p-8 bg-[var(--background-secondary)] rounded-xl border border-[var(--background-modifier-border)] text-center">
-                                        <p className="text-[var(--text-muted)] italic">"The path reveals itself only as you walk it."</p>
-                                        <div className="mt-4 p-4 bg-[var(--background-primary)] rounded border border-[var(--background-modifier-border)]">
-                                            <h3 className="font-bold text-[var(--text-normal)]">Chapter 1: The Awakeining</h3>
-                                            <p className="text-sm text-[var(--text-muted)] mt-2">You have begun to document your life. The fog lifts.</p>
+                                    <div className="p-12 bg-white/40 shadow-soft rounded-sm border border-sanctuary-border text-center">
+                                        <p className="text-sanctuary-ink font-serif italic text-lg leading-relaxed">"The path reveals itself only as you walk it."</p>
+                                        <div className="mt-8 p-6 bg-white/60 rounded border-l-2 border-sanctuary-red text-left">
+                                            <h3 className="font-serif text-xl text-sanctuary-ink mb-2">Chapter 1: The Awakening</h3>
+                                            <p className="text-sanctuary-inkLight leading-relaxed">You have begun to document your life. The fog lifts.</p>
                                         </div>
                                     </div>
                                 </div>
@@ -311,18 +320,21 @@ const App: React.FC<AppProps> = ({ app, plugin }) => {
 
             {/* FLOATING NAVIGATION PILL */}
             <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50">
-                <div className="bg-[var(--background-secondary)]/80 backdrop-blur-xl border border-[var(--background-modifier-border)] px-3 py-2 rounded-[24px] shadow-xl flex items-center gap-1">
+                <div className="bg-white/90 backdrop-blur-md border border-sanctuary-border px-6 py-3 rounded-full shadow-soft flex items-center gap-6">
                     {NAV_ITEMS.map(item => (
                         <button
                             key={item.tab}
                             onClick={() => setActiveTab(item.tab)}
-                            className={`flex flex-col items-center justify-center w-14 h-14 rounded-[18px] transition-all duration-500 group relative
+                            className={`flex flex-col items-center justify-center w-12 h-12 transition-all duration-500 group relative
                                 ${activeTab === item.tab
-                                    ? 'bg-[var(--interactive-accent)] text-white shadow-lg scale-110'
-                                    : 'text-[var(--text-muted)] hover:bg-[var(--background-modifier-hover)]'
+                                    ? 'text-sanctuary-red transform -translate-y-1'
+                                    : 'text-sanctuary-inkLight hover:text-sanctuary-ink'
                                 }`}
                         >
-                            <i className={`fa-solid ${item.img} text-lg mb-1 ${activeTab !== item.tab ? 'text-stone-500' : 'text-white'}`}></i>
+                            <i className={`fa-solid ${item.img} text-xl transition-colors duration-300`}></i>
+                            {activeTab === item.tab && (
+                                <div className="absolute -bottom-2 w-1 h-1 bg-sanctuary-red rounded-full"></div>
+                            )}
                         </button>
                     ))}
                 </div>

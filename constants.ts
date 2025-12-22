@@ -21,31 +21,32 @@ export const getLevelFromXp = (xp: number): number => {
 };
 
 // 1. Define the 15 Core Skills with OSRS Icons & Perks
+// 1. Define the 15 Core Skills with Sanctuary Themes
 export const SKILL_DEFINITIONS: Record<string, SkillDef> = {
-    // Physical & Health
-    Strength: { id: 'strength', name: 'Strength', icon: 'fa-gavel', color: 'text-red-600', description: 'Physical power and lifting.', perk: 'Unlimited Power: 2x Damage in Raids' },
-    Hitpoints: { id: 'hitpoints', name: 'Hitpoints', icon: 'fa-heart', color: 'text-red-500', description: 'Health, hygiene, and self-maintenance.', perk: 'Immortal Vitality: Decay reduced by 50%' },
-    Defense: { id: 'defense', name: 'Defense', icon: 'fa-shield-halved', color: 'text-blue-600', description: 'Self-defense and safety.', perk: 'Iron Skin: Town buildings resist damage' },
+    // Physical & Health (Earth)
+    Strength: { id: 'strength', name: 'Vitality', icon: 'fa-mountain', color: 'text-sanctuary-ink', description: 'Physical capacity and energy.', perk: 'Vigor: Energy to pursue the path' },
+    Hitpoints: { id: 'hitpoints', name: 'Wellness', icon: 'fa-heart', color: 'text-sanctuary-red', description: 'Care for the vessel.', perk: 'Harmony: Balance of body and mind' },
+    Defense: { id: 'defense', name: 'Resilience', icon: 'fa-shield-heart', color: 'text-sanctuary-green', description: 'Boundaries and emotional safety.', perk: 'Stability: Inner calm in chaos' },
 
-    // Tech & Craft
-    Dungeoneering: { id: 'dungeoneering', name: 'Dungeoneering', icon: 'fa-dungeon', color: 'text-slate-500', description: 'Coding and Obsidian architecture.', perk: 'Master Architect: Free building repairs' },
-    Crafting: { id: 'crafting', name: 'Crafting', icon: 'fa-hammer', color: 'text-amber-700', description: 'Household maintenance and repairs.', perk: 'Efficiency: Crafting tasks give +20% XP' },
+    // Tech & Craft (Wind/Void)
+    Dungeoneering: { id: 'dungeoneering', name: 'Architecture', icon: 'fa-cubes', color: 'text-sanctuary-inkLight', description: 'Structure of the digital mind.', perk: 'Foundation: Obsidian vault clarity' },
+    Crafting: { id: 'crafting', name: 'Craft', icon: 'fa-hammer', color: 'text-sanctuary-gold', description: 'Creating with hands and heart.', perk: 'Maker: Joy of creation' },
 
-    // Companion & Nature
-    Scout: { id: 'scout', name: 'Scout', icon: 'fa-paw', color: 'text-orange-500', description: 'Dog training, care, and bonding.', perk: 'Perfect obedience, happiness, and health' },
-    Farming: { id: 'farming', name: 'Farming', icon: 'fa-leaf', color: 'text-lime-500', description: 'Gardening and plant care.', perk: 'Green Thumb: Harvests yield 2x Gold' },
-    Cooking: { id: 'cooking', name: 'Cooking', icon: 'fa-utensils', color: 'text-yellow-500', description: 'Nutrition and meal prep.', perk: 'Master Chef: Meals never burn' },
+    // Companion & Nature (Water/Earth)
+    Scout: { id: 'scout', name: 'Companionship', icon: 'fa-paw', color: 'text-sanctuary-ink', description: 'Bond with animal guides.', perk: 'Loyalty: Unspoken connection' },
+    Farming: { id: 'farming', name: 'Cultivation', icon: 'fa-leaf', color: 'text-sanctuary-green', description: 'Nurturing life and growth.', perk: 'Growth: Patience yields fruit' },
+    Cooking: { id: 'cooking', name: 'Nourishment', icon: 'fa-bowl-food', color: 'text-sanctuary-red', description: 'Preparing sustenance.', perk: 'Savor: Presence in daily acts' },
 
-    // Intellect
-    Knowledge: { id: 'knowledge', name: 'Knowledge', icon: 'fa-book-skull', color: 'text-blue-400', description: 'Clinical practice and study.', perk: 'Forbidden Knowledge: +10% Global XP' },
-    Research: { id: 'research', name: 'Research', icon: 'fa-flask', color: 'text-cyan-400', description: 'Deep dives and questioning (Herblore).', perk: 'Potion Master: Buffs last 2x longer' },
+    // Intellect (Wind)
+    Knowledge: { id: 'knowledge', name: 'Wisdom', icon: 'fa-book-open', color: 'text-sanctuary-inkLight', description: 'Deep understanding.', perk: 'Insight: Clarity of thought' },
+    Research: { id: 'research', name: 'Inquiry', icon: 'fa-magnifying-glass', color: 'text-sanctuary-ink', description: 'Seeking truth.', perk: 'Discovery: New perspectives' },
 
-    // Social & Creative
-    Social: { id: 'social', name: 'Social', icon: 'fa-users', color: 'text-purple-400', description: 'Connection and communication.', perk: 'Charisma: Shop prices reduced by 20%' },
-    Writing: { id: 'writing', name: 'Writing', icon: 'fa-scroll', color: 'text-zinc-400', description: 'Journaling and reflection.', perk: 'Loremaster: Daily Log gives bonus XP' },
-    Art: { id: 'art', name: 'Art', icon: 'fa-palette', color: 'text-pink-400', description: 'Visual arts.', perk: 'Visionary: Unlocks custom aesthetics' },
-    Music: { id: 'music', name: 'Music', icon: 'fa-music', color: 'text-teal-400', description: 'Instrument practice.', perk: 'Virtuoso: Bard aura boosts morale' },
-    Language: { id: 'language', name: 'Language', icon: 'fa-language', color: 'text-indigo-400', description: 'Linguistics.', perk: 'Polyglot: Unlock foreign trade routes' },
+    // Social & Creative (Water/Fire)
+    Social: { id: 'social', name: 'Connection', icon: 'fa-users', color: 'text-sanctuary-red', description: 'Bridges between souls.', perk: 'Empathy: Understanding others' },
+    Writing: { id: 'writing', name: 'Expression', icon: 'fa-pen-nib', color: 'text-sanctuary-ink', description: 'manifesting thoughts into form.', perk: 'Voice: Clarity of self' },
+    Art: { id: 'art', name: 'Aesthetics', icon: 'fa-palette', color: 'text-sanctuary-red', description: 'Perception of beauty.', perk: 'Vision: Seeing the sublime' },
+    Music: { id: 'music', name: 'Harmony', icon: 'fa-music', color: 'text-sanctuary-green', description: 'Rhythm of life.', perk: 'Resonance: Tuning the mind' },
+    Language: { id: 'language', name: 'Understanding', icon: 'fa-language', color: 'text-sanctuary-gold', description: 'Decoding meaning.', perk: 'Bridge: Crossing barriers' },
 };
 
 // 2. Map Frontmatter Keys to Skills
@@ -220,206 +221,52 @@ export const AVAILABLE_BUFFS: Buff[] = [
 
 export const BUILDINGS: BuildingDef[] = [
     {
-        id: 'path_dirt',
-        name: 'Dirt Path',
-        icon: 'fa-shoe-prints',
-        color: 'text-amber-700',
-        description: 'Infrastructure. A worn dirt track. Connects buildings and keeps boots (mostly) clean.',
-    },
-    {
-        id: 'wood_wall',
-        name: 'Barricade',
-        icon: 'fa-bars',
-        color: 'text-amber-800',
-        description: 'Defense. A crude fence of sharpened stakes. Keeps out stray goblins and neighbors.',
-        unlockLevel: 5
-    },
-    {
-        id: 'stone_wall',
-        name: 'Stone Wall',
-        icon: 'fa-cubes',
-        color: 'text-stone-500',
-        description: 'Defense. Solid limestone blocks reinforced with granite. A proper fortification.',
-        unlockLevel: 10
-    },
-    {
-        id: 'shrub',
-        name: 'Berry Bush',
-        icon: 'fa-seedling',
-        color: 'text-green-500',
-        description: 'Nature. Redberries. Tasty, but watch out for thorns. Adds greenery.',
-    },
-    {
-        id: 'well',
-        name: 'Town Well',
-        icon: 'fa-bucket',
-        color: 'text-blue-400',
-        description: 'Utility. "Fresh water, free for all!" Essential for farming and hydration.',
-        unlockLevel: 3
-    },
-    {
-        id: 'market_stall',
-        name: 'Market Stall',
-        icon: 'fa-mask',
-        color: 'text-red-400',
-        description: 'Economy. "Silk! Furs! Spices!" A bustling hub that generates steady tax gold.',
-        unlockLevel: 8
-    },
-    {
-        id: 'training_dummy',
-        name: 'Combat Dummy',
-        icon: 'fa-user-ninja',
-        color: 'text-yellow-700',
-        description: 'Training. Filled with hay. Useful for hitting higher numbers. Increases town readiness.',
-        unlockLevel: 4
-    },
-    {
-        id: 'furnace',
-        name: 'Smelter',
-        icon: 'fa-fire-burner',
-        color: 'text-orange-500',
-        description: 'Industry. The heart of smithing. Smelts ores day and night. High economic output.',
-        unlockLevel: 15
-    },
-    {
-        id: 'archery_target',
-        name: 'Archery Range',
-        icon: 'fa-bullseye',
-        color: 'text-white',
-        description: 'Training. "Aim for the center!" Improves accuracy of local defenders.',
-        unlockLevel: 6
-    },
-    {
-        id: 'flower_red',
-        name: 'Red Flower',
-        icon: 'fa-spa',
-        color: 'text-red-400',
-        description: 'Farming. A vibrant red blossom. "Examine Red Flower: It is a pretty flower."',
-    },
-    {
         id: 'tree_pine',
         name: 'Pine Tree',
         icon: 'fa-tree',
-        color: 'text-emerald-700',
-        description: 'Nature. An evergreen pine. Provides shade and the scent of sap.',
+        color: 'text-sanctuary-green',
+        description: 'A symbol of longevity and resilience.',
     },
     {
-        id: 'bank_booth',
-        name: 'Bank Booth',
-        icon: 'fa-sack-dollar',
-        color: 'text-yellow-300',
-        description: 'Economy. "You can rely on us." The safest place in Gielinor. Boosts Gold storage.',
-        unlockLevel: 20
+        id: 'stone_lantern',
+        name: 'Stone Lantern',
+        icon: 'fa-lightbulb',
+        color: 'text-sanctuary-inkLight',
+        description: 'Illuminates the path of the mind.',
     },
     {
-        id: 'altar_guthix',
-        name: 'Altar of Balance',
-        icon: 'fa-place-of-worship',
-        color: 'text-teal-400',
-        description: 'Prayer. A shrine to Guthix. Promotes balance and harmony in the settlement.',
-        unlockLevel: 25
+        id: 'rock_garden',
+        name: 'Rock Formation',
+        icon: 'fa-cubes',
+        color: 'text-sanctuary-ink',
+        description: 'Stability amidst the chaos.',
     },
     {
-        id: 'house_cottage',
-        name: 'Cottage',
-        icon: 'fa-house',
-        color: 'text-amber-200',
-        description: 'Housing. A cozy wooden home. "Home sweet home." Supports population growth.',
+        id: 'shrine',
+        name: 'Small Shrine',
+        icon: 'fa-torii-gate',
+        color: 'text-sanctuary-red',
+        description: 'A place for quiet reflection.',
     },
     {
-        id: 'house_manor',
-        name: 'Manor',
-        icon: 'fa-house-chimney',
-        color: 'text-purple-300',
-        description: 'Housing. A stately home for the town elite. Generates high tax revenue.',
-        unlockLevel: 30
+        id: 'bonsai',
+        name: 'Bonsai',
+        icon: 'fa-seedling',
+        color: 'text-sanctuary-green',
+        description: 'Patience cultured over time.',
     },
     {
-        id: 'watchtower',
-        name: 'Watchtower',
-        icon: 'fa-eye',
-        color: 'text-stone-300',
-        description: 'Defense. "Scanning horizon..." Provides early warning against raids. High Def bonus.',
-        unlockLevel: 12
+        id: 'koi_pond',
+        name: 'Koi Pond',
+        icon: 'fa-water',
+        color: 'text-sanctuary-inkLight',
+        description: 'Flowing water clears the thoughts.',
     },
     {
-        id: 'blacksmith',
-        name: 'Blacksmith',
-        icon: 'fa-hammer',
-        color: 'text-gray-400',
-        description: 'Industry. The clanging of hammers never stops. Repairs gear and arms the guard.',
-        unlockLevel: 10
-    },
-    {
-        id: 'castle_keep',
-        name: 'Town Hall',
-        icon: 'fa-chess-king',
-        color: 'text-gray-200',
-        description: 'Administration. The seat of power. Massive boost to Tax Value and authority.',
-        unlockLevel: 50
-    },
-
-    // Troops
-    {
-        id: 'guard_varrock',
-        name: 'Varrock Guard',
-        icon: 'fa-shield-halved',
-        color: 'text-gray-400',
-        description: 'Troop. Equipped with bronze weaponry. "What is it now?" Basic melee defense.',
-        unlockLevel: 5
-    },
-    {
-        id: 'guard_dog',
-        name: 'Guard Dog',
-        icon: 'fa-paw',
-        color: 'text-emerald-500',
-        description: 'Troop. A loyal hound trained by Scouts to sniff out danger. High defense and sharp bites.',
-        unlockLevel: 10
-    },
-    {
-        id: 'ranger_elf',
-        name: 'Elf Ranger',
-        icon: 'fa-bullseye',
-        color: 'text-green-400',
-        description: 'Troop. A scout from Lletya wielding a crystal bow. High accuracy ranged support.',
-        unlockLevel: 20
-    },
-    {
-        id: 'knight_white',
-        name: 'White Knight',
-        icon: 'fa-hand-fist',
-        color: 'text-white',
-        description: 'Troop. Falador\'s finest. "We serve Saradomin." High defense and melee damage.',
-        unlockLevel: 30
-    },
-    {
-        id: 'dragon_green_baby',
-        name: 'Baby Green Dragon',
-        icon: 'fa-dragon',
-        color: 'text-green-600',
-        description: 'Troop. A fierce hatchling. "Roar!" Deals massive magic damage with dragonfire.',
-        unlockLevel: 45
-    },
-
-    // Utility Units
-    {
-        id: 'gnome_firemaker',
-        name: 'Gnome Firemaker',
-        icon: 'fa-fire',
-        color: 'text-red-500',
-        description: 'Utility. "Burn with me!" Automatically extinguishes fires that start during Decay events.',
-        unlockLevel: 15
-    },
-    {
-        id: 'estate_agent',
-        name: 'Estate Agent',
-        icon: 'fa-hammer',
-        color: 'text-yellow-500',
-        description: 'Utility. "Location, location!" Automatically repairs damaged buildings for free.',
-        unlockLevel: 20
-    },
-
-    // Event Items (Hidden from build menu)
-    { id: 'meteor', name: 'Meteorite', icon: 'fa-meteor', color: 'text-orange-600', description: 'Fallen from the sky. Contains rare ore. Mine it!', unlockLevel: 99 },
-    { id: 'treasure_chest', name: 'Buried Treasure', icon: 'fa-toolbox', color: 'text-yellow-500', description: 'An old casket surfaced by the rain. Open it!', unlockLevel: 99 },
+        id: 'tea_set',
+        name: 'Tea Set',
+        icon: 'fa-mug-hot',
+        color: 'text-sanctuary-gold',
+        description: 'Ritual brings presence.',
+    }
 ];
