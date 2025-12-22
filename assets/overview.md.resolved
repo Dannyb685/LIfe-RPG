@@ -1,0 +1,74 @@
+# Life RPG: Sanctuary Edition
+**"Cultivate your inner garden."**
+
+A passive, theme-aware "Silent Witness" for Obsidian. Unlike traditional RPG plugins that demand manual management, Life RPG operates in the background, converting your knowledge work and daily habits into a serene, evolving Zen Garden.
+
+## Core Philosophy
+1.  **Silent Witness**: No manual data entry for the game itself. The plugin parses your existing Obsidian workflow (files, daily notes, tasks) to generate progress.
+2.  **Zen Aesthetic**: Minimalist, isometric pixel art ("The Garden") replaces spreadsheets and complex HUDs.
+3.  **Theme Native**: Fully respects your Obsidian theme (colors, fonts) using CSS variables. Zero "theme clash."
+4.  **Automatic "Aha!"**: Writing, organizing, and completing tasks *automatically* rewards XP. No setup required to start.
+
+---
+
+## Key Features
+
+### 1. The Garden (Dashboard)
+A 64x32 isometric visualization of your mind's state. It evolves as you level up.
+*   **Visuals**: Isometric pixel art that scales with your progress.
+*   **Mechanic**: Passive observation. No interactive buildings or combat. It is a reflection of your work.
+
+### 2. The Chronicle (Journal)
+Your central command center for daily operations.
+*   **Active Tasks**: Aggregates uncompleted checklists from your Daily Notes.
+*   **Habit Tracking**: Visualizes habit progress (e.g., `Exercise`, `Meditation`) pulled directly from Daily Note frontmatter.
+
+### 3. The 5 Rings (Focus)
+A built-in Pomodoro and Focus timer.
+*   **Modes**: Pomodoro, Stopwatch, Meditate.
+*   **Rewards**: Completing focus sessions grants instant XP to relevant skills (e.g., "Scholar").
+
+### 4. Automatic Progression
+*   **File Effort**: Every file in your vault grants XP based on its size (`Scholar` skill).
+*   **Vault Mapping**: Map specific folders (e.g., `Projects/Coding`) or tags (`#gym`) to specific Skills to customize your growth.
+
+---
+
+## Technical Architecture
+
+### [markdownService.ts](file:///Users/danielbergholz/Documents/Second%20Brain/00.%20Attachments/06.%20Antigravity/LIfe-RPG/services/markdownService.ts) (The Eye)
+*   **Function**: Scans your vault using Obsidian's `MetadataCache`.
+*   **Logic**:
+    *   Detects "Daily Notes" via liberal pattern matching (`YYYY-MM-DD`, [Daily/](file:///Users/danielbergholz/Documents/Second%20Brain/00.%20Attachments/06.%20Antigravity/LIfe-RPG/types.ts#81-86) folder).
+    *   Extracts frontmatter keys (`Brush_Teeth:: 2`) for habit tracking.
+    *   Calculates "Effort XP" based on `file.stat.size` (capped at 500xp/file).
+    *   **Performance**: Event-driven (only reparses on `metadata:changed`).
+
+### [persistenceService.ts](file:///Users/danielbergholz/Documents/Second%20Brain/00.%20Attachments/06.%20Antigravity/LIfe-RPG/services/persistenceService.ts) (The Memory)
+*   **Function**: Manages the `life-rpg-data.json` file in your vault root.
+*   **Data**: Stores your custom Settings, Layout state, and History.
+
+### [HomeBase.tsx](file:///Users/danielbergholz/Documents/Second%20Brain/00.%20Attachments/06.%20Antigravity/LIfe-RPG/components/HomeBase.tsx) (The View)
+*   **Function**: Renders the Zen Garden.
+*   **Tech**: React + Canvas-style div positioning. Uses a procedural noise map for terrain generation.
+
+### [App.tsx](file:///Users/danielbergholz/Documents/Second%20Brain/00.%20Attachments/06.%20Antigravity/LIfe-RPG/App.tsx) (The Controller)
+*   **Function**: The main React container mounted into the Obsidian Leaf. Handles tab switching and global state.
+
+---
+
+## Updated Roadmap
+
+### Phase 1: Sanctuary Polish (Current)
+- [x] **Theme Integration**: Full support for active Obsidian themes.
+- [x] **Economy Removal**: Removed Ki, Gold, Market, and Inventory for a pure "Focus" experience.
+- [x] **Performance**: Switched to `MetadataCache` for instant updates.
+
+### Phase 2: Deepening the Roots (Next)
+- [ ] **Data Visualization**: Heatmaps for habit completion in the "History" tab.
+- [ ] **Smart Prompts**: Native Obsidian notifications for habit reminders based on time of day.
+- [ ] **Mobile Optimization**: Better touch targets for the Task list on iOS/Android.
+
+### Phase 3: The Narrative (Future)
+- [ ] **Story Engine**: Unlock text-based narrative chapters ("The Journey") as you reach level milestones.
+- [ ] **Seasonal Gardens**: Visual changes to the Garden based on real-world seasons.

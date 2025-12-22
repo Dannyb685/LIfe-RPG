@@ -1,17 +1,22 @@
 
+import { debounce } from 'obsidian';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { GameState, Buff, BuildingDef, Task, GridItem, LifeRPGData, TownEvent, Enemy, DailyStats, Quest, Skill } from './types';
-import { AVAILABLE_BUFFS, getLevelFromXp, getXpForLevel, SKILL_DECAY_RATES, BUILDINGS, HABIT_DEFINITIONS, QUEST_DEFINITIONS } from './constants';
+import { GameState, Task, LifeRPGData, Skill } from './types';
+import { HABIT_DEFINITIONS, SKILL_DEFINITIONS } from './constants';
 import { parseVault } from './services/markdownService';
-import { saveGameData, loadGameData } from './services/persistenceService';
-import Dashboard from './components/Dashboard';
-import TaskList from './components/TaskList';
+import { loadGameData, saveGameData } from './services/persistenceService';
+import { GARDEN_THEMES } from './constants';
+
+// Feature Components
+import Chronicle from './components/Chronicle';
 import Settings from './components/Settings';
+import TaskList from './components/TaskList';
+import { useGameSound } from './hooks/useGameSound';
+import DialogueOverlay from './components/DialogueOverlay';
+import WeatherOverlay from './components/WeatherOverlay';
+import { motion } from 'framer-motion';
 import HomeBase from './components/HomeBase';
-import FocusTimer from './components/FocusTimer';
-import LootPopup from './components/LootPopup';
-import HistoryCalendar from './components/HistoryCalendar'; 
-import QuestLog from './components/QuestLog';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Props passed from main.ts
 interface AppProps {
@@ -20,697 +25,318 @@ interface AppProps {
 }
 
 enum Tab {
-  DASHBOARD = 'DASHBOARD',
-  TASKS = 'TASKS', 
-  BASE = 'BASE',
-  FOCUS = 'FOCUS',
-  HISTORY = 'HISTORY',
-  SETTINGS = 'SETTINGS',
-  STORY = 'STORY'
+    DASHBOARD = 'DASHBOARD',
+    TASKS = 'TASKS',
+    FOCUS = 'FOCUS',
+    STORY = 'STORY',
+    HISTORY = 'HISTORY',
+    SETTINGS = 'SETTINGS',
 }
 
 const NAV_ITEMS = [
-    { tab: Tab.DASHBOARD, label: 'Dashboard', img: 'https://oldschool.runescape.wiki/images/Compass.png' },
-    { tab: Tab.FOCUS, label: 'Training', img: 'https://oldschool.runescape.wiki/images/Stats_icon.png' },
-    { tab: Tab.BASE, label: 'Home Base', img: 'https://oldschool.runescape.wiki/images/Construction_icon.png' },
-    { tab: Tab.STORY, label: 'Quest Journal', img: 'https://oldschool.runescape.wiki/images/Quest_point_icon.png' },
-    { tab: Tab.TASKS, label: 'Daily Log', img: 'https://oldschool.runescape.wiki/images/Skills_icon.png' },
-    { tab: Tab.HISTORY, label: 'Chronicle', img: 'https://oldschool.runescape.wiki/images/Achievement_Diaries_icon.png' },
-    { tab: Tab.SETTINGS, label: 'Settings', img: 'https://oldschool.runescape.wiki/images/Settings_icon.png' }
+    { tab: Tab.TASKS, label: 'Journal', img: 'fas fa-book' },
+    { tab: Tab.DASHBOARD, label: 'Garden', img: 'fas fa-tree' },
+    { tab: Tab.FOCUS, label: 'Focus', img: 'fas fa-clock' },
+    { tab: Tab.STORY, label: 'Journey', img: 'fas fa-scroll' },
+    { tab: Tab.HISTORY, label: 'Chronicle', img: 'fas fa-calendar-days' },
 ];
 
 const POMODORO_DEFAULT = 25 * 60;
 
-// Simple Audio Synthesizer
-const playTone = (type: 'start' | 'pause' | 'complete', enabled: boolean) => {
-    if (!enabled) return;
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    
-    const ctx = new AudioContext();
-    const now = ctx.currentTime;
-    
-    if (type === 'start') {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.setValueAtTime(600, now);
-        osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1);
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.3);
-        osc.start(now);
-        osc.stop(now + 0.3);
-    } else if (type === 'pause') {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.setValueAtTime(400, now);
-        osc.frequency.linearRampToValueAtTime(300, now + 0.15);
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.15);
-        osc.start(now);
-        osc.stop(now + 0.15);
-    } else if (type === 'complete') {
-        const notes = [440, 554, 659, 880];
-        notes.forEach((freq, i) => {
-             const o = ctx.createOscillator();
-             const g = ctx.createGain();
-             o.connect(g);
-             g.connect(ctx.destination);
-             o.type = 'square'; 
-             o.frequency.value = freq;
-             const startTime = now + (i * 0.15);
-             g.gain.setValueAtTime(0, startTime);
-             g.gain.linearRampToValueAtTime(0.05, startTime + 0.05);
-             g.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
-             o.start(startTime);
-             o.stop(startTime + 0.4);
-        });
-    }
-};
-
-// --- Combat Level Calculator ---
-export const calculateCombatLevel = (skills: Skill[]): { level: number, class: string } => {
-    const getLevel = (id: string) => skills.find(s => s.id === id)?.level || 1;
-    
-    const hp = getLevel('hitpoints');
-    const social = getLevel('social');
-    const strength = getLevel('strength');
-    const tech = getLevel('dungeoneering'); 
-    const intellect = getLevel('knowledge'); 
-
-    const lifeSkillIds = ['cooking', 'farming', 'crafting', 'scout', 'writing', 'art', 'music', 'language', 'research'];
-    const lifeLevels = lifeSkillIds.map(id => getLevel(id));
-    const lifeScore = Math.floor((lifeLevels.reduce((a, b) => a + b, 0) / Math.max(1, lifeLevels.length)));
-
-    const base = (hp + social + Math.floor(lifeScore / 2)) / 4;
-
-    const melee = strength * 2; 
-    const mage = 1.5 * tech;
-    const range = 1.5 * intellect;
-
-    const maxOffense = Math.max(melee, mage, range);
-    
-    const level = base + (0.325 * maxOffense);
-
-    let archetype = 'Adventurer';
-    if (maxOffense === melee) archetype = 'Warrior';
-    else if (maxOffense === mage) archetype = 'Mage';
-    else if (maxOffense === range) archetype = 'Ranger';
-
-    return { level: Math.floor(level), class: archetype };
-};
+// --- THEME ADAPTATION ---
+const ZEN_BG = "bg-[var(--background-primary)]";
+const ZEN_TEXT = "text-[var(--text-normal)]";
+const ZEN_ACCENT = "text-[var(--interactive-accent)]";
+const ZEN_BORDER = "border-[var(--background-modifier-border)]";
 
 const App: React.FC<AppProps> = ({ app, plugin }) => {
-  // State
-  const [rawFiles, setRawFiles] = useState<Record<string, string> | null>(null);
-  const [gameState, setGameState] = useState<GameState | null>(null);
-  const [persistentData, setPersistentData] = useState<LifeRPGData | null>(null);
-  const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
-  
-  const [activeTab, setActiveTab] = useState<Tab>(Tab.DASHBOARD);
-  const [notification, setNotification] = useState<{message: string, type: 'success' | 'info' | 'decay'} | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [buffs, setBuffs] = useState<Buff[]>(AVAILABLE_BUFFS);
-  
-  const [lootEvent, setLootEvent] = useState<{visible: boolean, amount: number, message: string, icon: string} | null>(null);
-  const [activeEvent, setActiveEvent] = useState<TownEvent | null>(null);
-  const [combatLevel, setCombatLevel] = useState({ level: 3, class: 'Adventurer' });
+    // State
+    const [gameState, setGameState] = useState<GameState | null>(null);
+    const [persistentData, setPersistentData] = useState<LifeRPGData | null>(null);
+    const [activeTab, setActiveTab] = useState<Tab>(Tab.TASKS);
+    const [showDialogue, setShowDialogue] = useState(false);
 
-  // Settings
-  const [defaultXpReward, setDefaultXpReward] = useState<number>(5);
-  const [goldMultiplier, setGoldMultiplier] = useState<number>(1);
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+    // Focus Timer State
+    const [timerActive, setTimerActive] = useState(false);
+    const [timerSeconds, setTimerSeconds] = useState(POMODORO_DEFAULT);
+    const [timerMode, setTimerMode] = useState<'POMODORO' | 'STOPWATCH' | 'MEDITATE'>('POMODORO');
+    const [breathPhase, setBreathPhase] = useState<'INHALE' | 'HOLD' | 'EXHALE'>('INHALE');
 
-  // Timer
-  const [timerActive, setTimerActive] = useState(false);
-  const [timerMode, setTimerMode] = useState<'POMODORO' | 'STOPWATCH'>('POMODORO');
-  const [timerSeconds, setTimerSeconds] = useState(POMODORO_DEFAULT);
-  const [timerSkillId, setTimerSkillId] = useState<string>('');
-  
-  const initialLoadComplete = useRef(false);
+    // Settings
+    const [defaultXpReward, setDefaultXpReward] = useState(10);
+    const [soundEnabled, setSoundEnabled] = useState(true);
+    const { play } = useGameSound(soundEnabled);
+    const [bgUrl, setBgUrl] = useState<string | undefined>(undefined);
 
-  // --- 1. INITIAL LOAD & FILE WATCHING ---
-  useEffect(() => {
-      const loadAllData = async () => {
-          const data = await loadGameData(plugin);
-          setPersistentData(data);
-          
-          setDefaultXpReward(data.settings.defaultXp);
-          setGoldMultiplier(data.settings.goldMultiplier);
-          setSoundEnabled(data.settings.soundEnabled);
-          
-          if (data.activeBuffs) {
-            setBuffs(prev => prev.map(b => ({ ...b, active: data.activeBuffs.includes(b.id) })));
-          }
+    // Base Path for Assets
+    const [assetBasePath, setAssetBasePath] = useState<string>('');
 
-          await refreshFiles();
-          initialLoadComplete.current = true;
-      };
+    useEffect(() => {
+        // Create a dummy path to resolve the folder URL
+        // trick: resolve a dummy file in the assets dir, then strip the filename
+        const dummyPath = `${plugin.manifest.dir}/assets/zen_garden_bg.png`;
+        const resolved = app.vault.adapter.getResourcePath(dummyPath);
+        // resolved: "app://.../assets/zen_garden_bg.png?12345"
+        // We want: "app://.../assets"
 
-      loadAllData();
+        // Remove query params
+        const cleanPath = resolved.split('?')[0];
+        // Remove filename
+        const basePath = cleanPath.substring(0, cleanPath.lastIndexOf('/'));
 
-      const onModify = app.vault.on('modify', async (file: any) => {
-          if (file.path && (file.path.endsWith('.md') || file.path === 'QUESTS.md')) {
-             await refreshFiles();
-          }
-      });
-      
-      const onCreate = app.vault.on('create', () => refreshFiles());
-      const onDelete = app.vault.on('delete', () => refreshFiles());
+        setAssetBasePath(basePath);
+    }, [plugin]);
 
-      return () => {
-          app.vault.offref(onModify);
-          app.vault.offref(onCreate);
-          app.vault.offref(onDelete);
-      };
-  }, [app, plugin]);
+    // --- DATA LOADING & SYNC ---
+    useEffect(() => {
+        const loadAllData = async () => {
+            const data = await loadGameData(plugin);
+            setPersistentData(data);
+            setDefaultXpReward(data.settings.defaultXp);
+            setSoundEnabled(data.settings.soundEnabled);
+        };
+        loadAllData();
 
-  const refreshFiles = async () => {
-      const files = app.vault.getMarkdownFiles();
-      const fileData: Record<string, string> = {};
-      const statsMap: Record<string, DailyStats> = {};
+        // Path to Zen Background
+        const loadBg = async () => {
+            if (!persistentData) return;
 
-      await Promise.all(files.map(async (file: any) => {
-          const content = await app.vault.read(file);
-          fileData[file.path] = content;
-          
-          const dateMatch = file.name.match(/(\d{4}-\d{2}-\d{2})/);
-          if (dateMatch) {
-              const date = dateMatch[1];
-              const xpMatches = content.match(/\+(\d+)\s*XP/g);
-              let xp = 0;
-              if (xpMatches) {
-                  xp = xpMatches.reduce((acc: number, m: string) => acc + parseInt(m.match(/\d+/)[0]), 0);
-              }
-              const habitMatches = content.match(/([a-zA-Z_]+)::\s*(\d+)/g);
-              if (habitMatches) {
-                  habitMatches.forEach((h: string) => {
-                      const parts = h.split('::');
-                      if (parseInt(parts[1]) > 0) xp += 10; 
-                  });
-              }
+            let targetTheme = 'classic';
+            const { themeMode, manualThemeId } = persistentData.settings;
 
-              if (xp > 0) {
-                  statsMap[date] = { date, totalXp: xp, tasksCompleted: 0, primarySkill: 'General' };
-              }
-          }
-      }));
-      
-      setRawFiles(fileData);
-      setDailyStats(Object.values(statsMap).sort((a,b) => a.date.localeCompare(b.date)));
-  };
+            if (themeMode === 'MANUAL' && manualThemeId) {
+                targetTheme = manualThemeId;
+            } else if (themeMode === 'SMART') {
+                // Smart Rotation Logic
+                const hour = new Date().getHours();
+                const month = new Date().getMonth(); // 0-11
 
-  // --- 2. GAME LOGIC & PARSING ---
-  useEffect(() => {
-      if (!rawFiles || !persistentData) return;
+                // Determine Season (Northern Hemisphere)
+                let season = 'spring';
+                if (month >= 2 && month <= 4) season = 'spring';
+                else if (month >= 5 && month <= 7) season = 'summer';
+                else if (month >= 8 && month <= 10) season = 'autumn';
+                else season = 'winter';
 
-      const data = parseVault(rawFiles, defaultXpReward);
-      
-      if (!timerSkillId && data.skills.length > 0) {
-          setTimerSkillId(data.skills[0].id);
-      }
-
-      const cb = calculateCombatLevel(data.skills);
-      setCombatLevel(cb);
-
-      const now = Date.now();
-      let decayDebt = { ...persistentData.decayDebt };
-      let skillUpdateMap = { ...persistentData.skillUpdateMap };
-      let totalDecayedXp = 0;
-      let decayMessageParts: string[] = [];
-
-      data.skills.forEach(skill => {
-          if (!skillUpdateMap[skill.name]) skillUpdateMap[skill.name] = now;
-          const lastTime = skillUpdateMap[skill.name];
-          const hoursPassed = (now - lastTime) / (1000 * 60 * 60);
-
-          if (hoursPassed > 1) {
-              const rate = SKILL_DECAY_RATES[skill.name] ?? SKILL_DECAY_RATES['Default'];
-              const loss = Math.floor(rate * hoursPassed);
-              if (loss > 0) {
-                  const currentTotal = skill.currentXp;
-                  const currentDebt = decayDebt[skill.name] || 0;
-                  const potentialDebt = currentDebt + loss;
-                  decayDebt[skill.name] = Math.min(potentialDebt, currentTotal);
-                  totalDecayedXp += loss;
-                  if (loss > 5) decayMessageParts.push(`${skill.name} -${loss}`);
-                  skillUpdateMap[skill.name] = now;
-              }
-          }
-      });
-
-      let adjustedTotalXp = 0;
-      const adjustedSkills = data.skills.map(skill => {
-          const debt = decayDebt[skill.name] || 0;
-          const newXp = Math.max(0, skill.currentXp - debt);
-          const newLevel = getLevelFromXp(newXp);
-          const newNextLevel = getXpForLevel(newLevel + 1);
-          adjustedTotalXp += newXp;
-          return { ...skill, currentXp: newXp, level: newLevel, xpForNextLevel: newNextLevel };
-      });
-
-      let currentGold = persistentData.gold;
-      const isDefaultLayout = persistentData.baseLayout.length <= 3 && persistentData.baseLayout.some(i => i.id === 'starter_house');
-      
-      if (currentGold === 0 && adjustedTotalXp > 50 && isDefaultLayout) {
-          currentGold = adjustedTotalXp;
-      }
-
-      const sourceQuests = data.quests.length > 0 ? data.quests : QUEST_DEFINITIONS;
-      const mergedQuests: Quest[] = sourceQuests.map(def => {
-          const saved = persistentData.quests && persistentData.quests[def.id];
-          if (def.status === 'COMPLETED') return def;
-          if (saved) return { ...def, status: saved.status };
-          return def;
-      });
-
-      setGameState({
-          ...data,
-          skills: adjustedSkills,
-          totalXp: adjustedTotalXp,
-          gold: currentGold, 
-          baseLayout: persistentData.baseLayout.length > 0 ? persistentData.baseLayout : data.baseLayout,
-          quests: mergedQuests
-      });
-
-      if (totalDecayedXp > 0 && initialLoadComplete.current) {
-         const msg = decayMessageParts.length > 2 
-            ? `Entropy set in... You lost ${totalDecayedXp} XP.`
-            : `Atrophy: ${decayMessageParts.join(', ')} XP`;
-         if (decayMessageParts.length > 0) setTimeout(() => showNotification(msg, 'decay'), 1000);
-         saveGameData(plugin, { decayDebt, skillUpdateMap });
-      }
-
-  }, [rawFiles, persistentData, defaultXpReward]);
-
-  // --- 3. AUTO-SAVE & SYNC ---
-  useEffect(() => {
-      if (!gameState || !initialLoadComplete.current) return;
-      
-      const questMap: Record<string, Quest> = {};
-      gameState.quests.forEach(q => {
-          if (q.status !== 'NOT_STARTED') {
-              questMap[q.id] = q;
-          }
-      });
-
-      const saveData = {
-          gold: gameState.gold,
-          baseLayout: gameState.baseLayout,
-          activeBuffs: buffs.filter(b => b.active).map(b => b.id),
-          quests: questMap
-      };
-      
-      saveGameData(plugin, saveData);
-      setPersistentData(prev => prev ? { ...prev, ...saveData } : null);
-  }, [gameState?.gold, gameState?.baseLayout, gameState?.quests, buffs]);
-
-  // --- 4. GLOBAL GAME LOOP ---
-  useEffect(() => {
-    if (!gameState) return;
-    const interval = setInterval(() => {
-        const now = Date.now();
-        if (activeEvent && activeEvent.expiresAt && now > activeEvent.expiresAt) {
-            if (activeEvent.type === 'RAID') {
-                 const loss = Math.floor(gameState.gold * 0.1);
-                 handleDeductGold(loss);
-                 showNotification(`Defenses failed! Raiders stole ${loss} gold.`, 'decay');
+                // Determine Time of Day
+                if (hour >= 21 || hour < 5) { // Night (9PM - 5AM)
+                    targetTheme = 'night';
+                } else if (hour >= 5 && hour < 8) { // Dawn (5AM - 8AM)
+                    targetTheme = Math.random() > 0.5 ? 'dawn' : 'fog';
+                } else { // Day (8AM - 9PM)
+                    // Rain chance (Simple RNG for now, ideally hook into weather API later)
+                    // For now, day = season
+                    targetTheme = season;
+                }
+            } else if (themeMode === 'RANDOM') {
+                const randomIdx = Math.floor(Math.random() * GARDEN_THEMES.length);
+                targetTheme = GARDEN_THEMES[randomIdx].id;
             }
-            setActiveEvent(null);
-            return;
+
+            // Resolve Filename
+            const themeDef = GARDEN_THEMES.find(t => t.id === targetTheme) || GARDEN_THEMES[0];
+            const themePath = `${plugin.manifest.dir}/assets/${themeDef.file}`;
+
+            if (await app.vault.adapter.exists(themePath)) {
+                setBgUrl(app.vault.adapter.getResourcePath(themePath));
+            } else {
+                console.warn("LifeRPG: Theme file not found:", themePath);
+            }
+        };
+        loadBg();
+    }, [persistentData]); // Reload BG when persistentData (settings) changes
+
+    useEffect(() => {
+        if (!persistentData) return;
+
+        // Debounced calculation to prevent typing lag
+        // We wait N milliseconds after the last change before triggering the heavy vault parse
+        const triggerRecalc = debounce(async () => {
+            console.log("LifeRPG: Recalculating Stats...");
+            const files = app.vault.getMarkdownFiles();
+            // Light filtering for daily notes and active note
+            const activeFile = app.workspace.getActiveFile();
+            const relevantFiles = files.filter((f: any) =>
+                f.path.includes('Daily/') || f.path.includes('Journal/') || f.path === activeFile?.path
+            );
+
+            const newState = await parseVault(app, relevantFiles, defaultXpReward, persistentData.settings.customMappings);
+            setGameState({
+                ...newState,
+                baseLayout: persistentData.baseLayout || []
+            });
+        }, persistentData.settings.debounceDelay || 2000, true); // Use setting or default to 2000
+
+        // Trigger on metadata changes using the debounced function
+        const metaRef = app.metadataCache.on('changed', () => triggerRecalc());
+        const leafRef = app.workspace.on('active-leaf-change', () => triggerRecalc());
+
+        // Initial load (immediate call)
+        triggerRecalc();
+
+        return () => {
+            app.metadataCache.offref(metaRef);
+            app.workspace.offref(leafRef);
+            // triggerRecalc.cancel(); // Not strictly available on all Obsidian debounce implementations but safe to omit
+        };
+    }, [persistentData]);
+
+    // Timer Logic
+    useEffect(() => {
+        let interval: any;
+        if (timerActive) {
+            interval = setInterval(() => {
+                setTimerSeconds(prev => {
+                    if (timerMode === 'STOPWATCH') return prev + 1;
+                    if (prev <= 1) {
+                        setTimerActive(false);
+                        play('gong');
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
         }
-        if (!activeEvent && Math.random() < 0.02 && gameState.baseLayout.length > 3) {
-             const rand = Math.random();
-             let enemyType: any = 'GOBLIN';
-             if (rand > 0.90) enemyType = 'DRAGON';
-             else if (rand > 0.70) enemyType = 'BANDIT';
-             
-             let xpReq = 150; // Increased requirement to account for troop dps
-             let duration = 1000 * 60 * 60 * 2; 
-             if (enemyType === 'DRAGON') { xpReq = 500; duration = 1000 * 60 * 60 * 4; }
-             
-             const newEnemy: Enemy = {
-                  id: `enemy-${Date.now()}`,
-                  name: enemyType,
-                  level: 5, hp: 100, maxHp: 100, type: enemyType, drops: 100, attack: 5, defense: 5
-             };
-             
-             setActiveEvent({ 
-                 message: `Approaching Threat: ${newEnemy.name}!`, 
-                 type: 'RAID', 
-                 active: true, 
-                 enemyData: newEnemy,
-                 requiredXp: xpReq,
-                 currentXp: 0,
-                 expiresAt: Date.now() + duration
-             });
-             playTone('start', soundEnabled);
-        }
+        return () => clearInterval(interval);
+    }, [timerActive, timerMode]);
 
-    }, 10000); 
-    return () => clearInterval(interval);
-  }, [gameState, activeEvent]);
+    // UI Helpers
+    const formatTime = (totalSeconds: number) => {
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
 
-  // --- HANDLERS ---
-  const injectDailyTemplate = async () => {
-      const activeFile = app.workspace.getActiveFile();
-      if (!activeFile) {
-          showNotification("No active file to insert template into.", "info");
-          return;
-      }
-      let template = `\n\n## Daily Habits\n`;
-      HABIT_DEFINITIONS.forEach(h => { template += `${h.key}:: 0\n`; });
-      template += `\n## Tasks\n- [ ] Task 1 (+10 XP) #General\n`;
-      try {
-          await app.vault.process(activeFile, (data: string) => data + template);
-          showNotification("Template inserted!", "success");
-      } catch (e) {
-          console.error("Failed to insert template", e);
-      }
-  };
+    if (!gameState) return <div className={`flex items-center justify-center h-screen ${ZEN_BG} ${ZEN_TEXT}`}>Loading Sanctuary...</div>;
 
-  const contributeToDefense = (xpAmount: number) => {
-      setActiveEvent(prev => {
-          if (prev && prev.type === 'RAID' && prev.requiredXp) {
-              const newCurrent = (prev.currentXp || 0) + xpAmount;
-              if (newCurrent >= prev.requiredXp) {
-                   const reward = prev.enemyData ? prev.enemyData.drops : 50;
-                   handleLootDrop(reward, "Threat Neutralized!");
-                   playTone('complete', soundEnabled);
-                   return null;
-              } else {
-                   return { ...prev, currentXp: newCurrent };
-              }
-          }
-          return prev;
-      });
-  };
+    return (
+        <div className={`flex flex-col h-full font-serif ${ZEN_BG} ${ZEN_TEXT} overflow-hidden selection:bg-[var(--text-selection)] relative`}>
+            <WeatherOverlay />
 
-  const handleBuild = (x: number, y: number, building: BuildingDef) => {
-      if (!gameState) return;
-      if (gameState.gold < building.cost) { 
-          showNotification(`Not enough gold! Need ${building.cost}gp`, 'info'); 
-          return; 
-      }
-      setGameState(prev => {
-          if (!prev) return null;
-          if (prev.baseLayout.some(i => i.x === x && i.y === y)) return prev;
-          return { ...prev, gold: prev.gold - building.cost, baseLayout: [...prev.baseLayout, { x, y, buildingId: building.id, id: `build-${Date.now()}` }] };
-      });
-      playTone('start', soundEnabled);
-  };
-
-  const handleUpdateBuilding = (x: number, y: number, changes: Partial<GridItem>) => {
-      if (!gameState) return;
-      setGameState(prev => {
-          if (!prev) return null;
-          return { ...prev, baseLayout: prev.baseLayout.map(item => (item.x === x && item.y === y) ? { ...item, ...changes } : item) };
-      });
-  };
-
-  const handleRemoveBuilding = (x: number, y: number) => {
-    if (!gameState) return;
-    setGameState(prev => {
-        if (!prev) return null;
-        return { ...prev, baseLayout: prev.baseLayout.filter(i => !(i.x === x && i.y === y)) };
-    });
-  };
-
-  const handleCollectTaxes = (amount: number) => {
-     if (!gameState) return;
-     setGameState(prev => {
-         if (!prev) return null;
-         return { ...prev, gold: prev.gold + amount }
-     });
-     showNotification(`Collected ${amount} gold!`, 'success');
-  };
-
-  const handleDeductGold = (amount: number) => {
-      if (!gameState) return;
-      setGameState(prev => {
-          if (!prev) return null;
-          return { ...prev, gold: Math.max(0, prev.gold - amount) };
-      });
-  };
-
-  const handleLootDrop = (amount: number, message: string) => {
-      if (!gameState) return;
-      const finalAmount = Math.floor(amount * goldMultiplier);
-      setGameState(prev => {
-          if (!prev) return null;
-          return { ...prev, gold: prev.gold + finalAmount }
-      });
-      setLootEvent({ visible: true, amount: finalAmount, message: message, icon: amount >= 500 ? 'fa-gem' : 'fa-coins' });
-      setTimeout(() => setLootEvent(null), 3500);
-  };
-
-  const handleToggleBuff = (buffId: string) => {
-    setBuffs(prev => prev.map(b => b.id === buffId ? { ...b, active: !b.active } : b));
-  };
-
-  const handleSaveSettings = (newXp: number, newGoldMult: number, newSound: boolean) => {
-    setDefaultXpReward(newXp);
-    setGoldMultiplier(newGoldMult);
-    setSoundEnabled(newSound);
-    saveGameData(plugin, { settings: { defaultXp: newXp, goldMultiplier: newGoldMult, soundEnabled: newSound } });
-    showNotification('Settings saved.', 'success');
-  };
-
-  const handleSessionComplete = async (seconds: number, skillId: string, mode: 'POMODORO' | 'STOPWATCH') => {
-      const minutes = seconds / 60;
-      let baseXP = minutes * 2;
-      let bonusMultiplier = 1;
-      if (minutes >= 20) bonusMultiplier = 1.2;
-      const totalXpReward = Math.floor(baseXP * bonusMultiplier);
-      const goldReward = Math.floor(totalXpReward * goldMultiplier);
-      const skillName = gameState?.skills.find(s => s.id === skillId)?.name || 'General';
-      setGameState(prev => prev ? { ...prev, gold: prev.gold + goldReward } : null);
-      contributeToDefense(totalXpReward);
-
-      if (plugin && plugin.app && plugin.app.vault) {
-          try {
-              const today = new Date().toISOString().split('T')[0];
-              let targetFile = plugin.app.vault.getAbstractFileByPath(`${today}.md`);
-              if (!targetFile) targetFile = plugin.app.vault.getAbstractFileByPath(`Daily Notes/${today}.md`);
-              if (!targetFile) targetFile = plugin.app.workspace.getActiveFile();
-              if (targetFile) {
-                  const logLine = `\n- [x] 🍅 Session: ${skillName} (+${totalXpReward} XP, +${goldReward}gp) #TimeTracking`;
-                  await plugin.app.vault.process(targetFile, (data: string) => data + logLine);
-                  showNotification(`Logged to ${targetFile.name}`, 'success');
-              }
-          } catch (e) { console.error("Failed to sync timer", e); }
-      }
-      showNotification(`Session Ended: +${goldReward} Gold`, 'success');
-  };
-  
-  const handleToggleTimer = () => {
-      if (timerActive) { playTone('pause', soundEnabled); setTimerActive(false); } 
-      else { playTone('start', soundEnabled); setTimerActive(true); }
-  };
-  const handleStopTimer = () => {
-      setTimerActive(false);
-      const duration = timerMode === 'POMODORO' ? POMODORO_DEFAULT - timerSeconds : timerSeconds;
-      if (duration > 5) { handleSessionComplete(duration, timerSkillId, timerMode); playTone('complete', soundEnabled); }
-      if (timerMode === 'POMODORO') setTimerSeconds(POMODORO_DEFAULT); else setTimerSeconds(0);
-  };
-  const handleTimerModeChange = (mode: 'POMODORO' | 'STOPWATCH') => {
-      setTimerActive(false); setTimerMode(mode);
-      if (mode === 'POMODORO') setTimerSeconds(POMODORO_DEFAULT); else setTimerSeconds(0);
-  };
-
-  const handleToggleTask = (taskId: string) => {
-      if (!gameState) return;
-      const task = gameState.tasks.find(t => t.id === taskId);
-      if (task && !task.completed) {
-          contributeToDefense(task.xpReward || 5);
-      }
-      setGameState(prev => {
-          if (!prev) return null;
-          const tasks = prev.tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t);
-          return { ...prev, tasks };
-      });
-  };
-
-  const handleStartQuest = (questId: string) => {
-      if (!gameState) return;
-      setGameState(prev => {
-          if (!prev) return null;
-          return { ...prev, quests: prev.quests.map(q => q.id === questId ? { ...q, status: 'IN_PROGRESS' } : q) };
-      });
-      playTone('start', soundEnabled);
-  };
-
-  const handleToggleQuestStep = (questId: string, stepId: string) => {
-      if (!gameState) return;
-      setGameState(prev => {
-          if (!prev) return null;
-          const quests = prev.quests.map(q => {
-              if (q.id !== questId) return q;
-              return { ...q, steps: q.steps.map(s => s.id === stepId ? { ...s, completed: !s.completed } : s) };
-          });
-          return { ...prev, quests };
-      });
-  };
-
-  const handleCompleteQuest = (questId: string) => {
-      if (!gameState) return;
-      const quest = gameState.quests.find(q => q.id === questId);
-      if (!quest) return;
-      let totalGold = 0;
-      let rewardText = "Quest Complete! ";
-      const newSkills = [...gameState.skills];
-      quest.rewards.forEach(r => {
-          if (r.gold) totalGold += r.gold;
-          if (r.xp > 0 && r.skill) {
-              const sIndex = newSkills.findIndex(s => s.id === r.skill);
-              if (sIndex > -1) {
-                  const s = newSkills[sIndex];
-                  s.currentXp += r.xp;
-                  s.level = getLevelFromXp(s.currentXp);
-                  s.xpForNextLevel = getXpForLevel(s.level + 1);
-              }
-          }
-          if (r.item) rewardText += `Unlocked: ${r.item}. `;
-      });
-      setGameState(prev => prev ? { ...prev, skills: newSkills, gold: prev.gold + totalGold, quests: prev.quests.map(q => q.id === questId ? { ...q, status: 'COMPLETED' } : q) } : null);
-      playTone('complete', soundEnabled);
-      handleLootDrop(totalGold, quest.name);
-      showNotification(rewardText, 'success');
-  };
-
-  const showNotification = (message: string, type: 'success' | 'info' | 'decay') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 4500);
-  };
-  
-  const handleNavigateToTasks = (tag: string) => { setActiveTab(Tab.TASKS); setSearchTerm(tag); };
-
-  if (!gameState) {
-      return (
-          <div className="h-screen w-full flex flex-col items-center justify-center bg-[#1a1a1a] text-[#ff981f]">
-               <i className="fa-solid fa-spinner fa-spin text-4xl mb-4"></i>
-               <p className="font-fantasy tracking-widest animate-pulse">Reading Vault Runes...</p>
-          </div>
-      );
-  }
-
-  return (
-    <div className="h-full bg-wood-black font-pixel flex flex-col md:flex-row overflow-hidden">
-      {lootEvent && <LootPopup amount={lootEvent.amount} message={lootEvent.message} icon={lootEvent.icon} />}
-      
-      <nav className="w-16 md:w-64 bg-wood-pattern border-r-4 border-wood-black flex flex-col items-center md:items-stretch z-20 shadow-xl">
-         <div className="p-4 bg-black/20 text-center border-b-2 border-[#5d5447]">
-             <h1 className="hidden md:block text-2xl font-bold text-[#ff981f] font-fantasy drop-shadow-md">Life RPG</h1>
-             <i className="md:hidden fa-solid fa-dragon text-[#ff981f] text-2xl"></i>
-         </div>
-         <div className="flex-1 overflow-y-auto">
-             {NAV_ITEMS.map(item => (
-                 <button 
-                    key={item.tab}
-                    onClick={() => setActiveTab(item.tab)}
-                    className={`w-full p-4 flex items-center gap-4 transition-all hover:bg-white/5 relative
-                        ${activeTab === item.tab ? 'bg-wood-dark text-[#ffff00] border-l-4 border-[#ffff00]' : 'text-[#dcdcdc]'}`}
-                 >
-                     <img src={item.img} className="w-6 h-6 object-contain" style={{ imageRendering: 'pixelated' }} />
-                     <span className="hidden md:block font-bold drop-shadow-sm">{item.label}</span>
-                     {item.tab === Tab.TASKS && gameState.tasks.filter(t => !t.completed).length > 0 && (
-                         <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                     )}
-                 </button>
-             ))}
-         </div>
-         
-         <div className="p-4 border-t border-[#5d5447]">
-             <button 
-                onClick={injectDailyTemplate}
-                className="w-full bg-[#3e3226] border-2 border-[#5d5447] text-[#dcdcdc] text-xs py-2 hover:bg-[#4a3f35] active:translate-y-1"
-             >
-                 <i className="fa-solid fa-plus mr-2"></i> Insert Template
-             </button>
-         </div>
-      </nav>
-
-      <main className="flex-1 relative bg-parchment-pattern overflow-hidden flex flex-col">
-         <div className="bg-wood-pattern p-2 border-b-2 border-wood-black flex justify-between items-center shadow-md z-10">
-             <div className="text-[#dcdcdc] font-mono text-xs flex gap-4">
-                 <span className="flex items-center gap-2">
-                     <i className="fa-solid fa-khanda text-red-500"></i>
-                     <span className="text-white font-bold">{combatLevel.level}</span>
-                     <span className="text-[#9a9a9a]">({combatLevel.class})</span>
-                 </span>
-                 <span><i className="fa-solid fa-coins text-[#ffff00]"></i> {gameState.gold.toLocaleString()}</span>
-                 <span>Total Lvl {Math.floor(gameState.totalXp / 1000)}</span>
-             </div>
-             {activeTab !== Tab.SETTINGS && activeTab !== Tab.BASE && (
-                 <input 
-                    type="text" 
-                    placeholder="Search..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="bg-[#1a1816] border border-[#5d5447] text-white px-2 py-1 text-xs rounded font-pixel w-32 focus:w-48 transition-all"
-                 />
-             )}
-         </div>
-
-         <div className="flex-1 overflow-auto p-4 md:p-6 scrollbar-thin scrollbar-thumb-wood-light">
-             {activeTab === Tab.DASHBOARD && <Dashboard gameState={gameState} searchTerm={searchTerm} buffs={buffs} onToggleBuff={handleToggleBuff} combatLevel={combatLevel} />}
-             {activeTab === Tab.BASE && (
-                <div className="h-full w-full border-4 border-wood-black rounded shadow-2xl overflow-hidden relative">
-                    <HomeBase 
-                        gameState={gameState} 
-                        activeEvent={activeEvent} 
-                        onEventComplete={() => setActiveEvent(null)}
-                        onBuild={handleBuild} 
-                        onRemove={handleRemoveBuilding} 
-                        onUpdateBuilding={handleUpdateBuilding}
-                        onCollectTaxes={handleCollectTaxes}
-                        onLootDrop={handleLootDrop}
-                        onDeductGold={handleDeductGold}
-                        onNavigateToTasks={handleNavigateToTasks}
-                        onContributeDefense={contributeToDefense}
-                    />
+            {/* MAIN CONTENT AREA */}
+            <div className="flex-1 overflow-y-auto relative scroll-smooth">
+                {/* MINIMAL HEADER */}
+                <div className="h-20 flex items-center justify-between px-12 sticky top-0 z-30 pointer-events-none">
+                    <div className="text-xl italic text-[var(--text-muted)] font-light pointer-events-auto">
+                        Cultivate your inner garden.
+                    </div>
                 </div>
-             )}
-             {activeTab === Tab.STORY && (
-                 <QuestLog 
-                    quests={gameState.quests} 
-                    skills={gameState.skills} 
-                    onStartQuest={handleStartQuest}
-                    onToggleStep={handleToggleQuestStep}
-                    onCompleteQuest={handleCompleteQuest}
-                 />
-             )}
-             {activeTab === Tab.TASKS && (
-                 <div className="max-w-4xl mx-auto">
-                     <TaskList title="Daily Habits" tasks={gameState.tasks.filter(t => t.isHabit && !t.completed)} onToggleTask={handleToggleTask} isHabitList />
-                     <TaskList title="Daily Tasks" tasks={gameState.tasks.filter(t => !t.isHabit && !t.completed)} onToggleTask={handleToggleTask} />
-                 </div>
-             )}
-             {activeTab === Tab.FOCUS && (
-                 <div className="flex items-center justify-center h-full">
-                     <FocusTimer skills={gameState.skills} isActive={timerActive} mode={timerMode} seconds={timerSeconds} selectedSkillId={timerSkillId} onToggle={handleToggleTimer} onStop={handleStopTimer} onModeChange={handleTimerModeChange} onSkillChange={setTimerSkillId} />
-                 </div>
-             )}
-             {activeTab === Tab.HISTORY && <HistoryCalendar stats={dailyStats} />}
-             {activeTab === Tab.SETTINGS && (
-                 <Settings defaultXp={defaultXpReward} goldMultiplier={goldMultiplier} soundEnabled={soundEnabled} onSave={handleSaveSettings} />
-             )}
-         </div>
-      </main>
 
-      {notification && (
-        <div className={`fixed bottom-6 right-6 px-6 py-4 rounded-sm border-2 shadow-xl z-[200] animate-bounce-in bg-wood-pattern ${
-            notification.type === 'success' ? 'border-[#00ff00] text-[#00ff00]' : 
-            notification.type === 'decay' ? 'border-red-600 text-red-500' : 'border-[#5555ff] text-[#5555ff]'
-        }`}>
-            <span className="font-bold font-pixel text-xl drop-shadow-md">{notification.message}</span>
-        </div>
-      )}
-    </div>
-  );
+                {/* APP VIEWS */}
+                <div className="pb-32 min-h-full">
+                    <ErrorBoundary>
+                        <div className="max-w-7xl mx-auto px-4 sm:px-8">
+                            {activeTab === Tab.TASKS && (
+                                <div className="space-y-12 animate-fade-in py-12">
+                                    <div className="flex flex-col items-center mb-12">
+                                        <h1 className="text-5xl font-serif text-[var(--text-normal)] mb-2 italic">the chronicle</h1>
+                                        <p className="text-[var(--text-muted)] tracking-[0.2em] uppercase text-xs">
+                                            {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                                        </p>
+                                    </div>
+                                    <TaskList
+                                        title="Active Tasks"
+                                        tasks={gameState.tasks && gameState.tasks.length > 0 ? gameState.tasks : [
+                                            { id: 'mock-1', description: 'Debug: Meditate for 10 min', completed: false, xpReward: 50, skillTag: 'mind', filename: 'Mock', isHabit: true, currentValue: 0, targetValue: 10 },
+                                            { id: 'mock-2', description: 'Debug: Write journal entry', completed: true, xpReward: 20, skillTag: 'create', filename: 'Mock', isHabit: false }
+                                        ]}
+                                        onToggleTask={(id) => console.log('Toggle', id)}
+                                    />
+                                </div>
+                            )}
+
+                            {activeTab === Tab.DASHBOARD && (
+                                <div className="h-full w-full relative">
+                                    <HomeBase
+                                        gameState={gameState}
+                                        backgroundImage={bgUrl}
+                                        avatarAction="IDLE"
+                                        assetBasePath={assetBasePath}
+                                    />
+                                </div>
+                            )}
+
+                            {activeTab === Tab.FOCUS && (
+                                <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-12 animate-fade-in py-12">
+                                    <div className="text-9xl font-mono tracking-tighter text-[var(--text-normal)] opacity-80">
+                                        {formatTime(timerSeconds)}
+                                    </div>
+
+                                    <div className="flex flex-col items-center gap-8">
+                                        <button
+                                            onClick={() => setTimerActive(!timerActive)}
+                                            className="px-12 py-4 rounded-full bg-[var(--interactive-accent)] text-white font-bold hover:scale-105 transition-transform"
+                                        >
+                                            {timerActive ? 'pause' : 'begin'}
+                                        </button>
+
+                                        <div className="text-sm font-mono text-[var(--text-muted)] tracking-widest uppercase">
+                                            <i className="fas fa-bolt text-yellow-500 mr-2"></i>
+                                            Potential: +50 Focus XP
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === Tab.STORY && (
+                                <div className="space-y-12 animate-fade-in py-12">
+                                    <div className="flex flex-col items-center mb-12">
+                                        <h1 className="text-5xl font-serif text-[var(--text-normal)] mb-2 italic">the journey</h1>
+                                        <p className="text-[var(--text-muted)] tracking-[0.2em] uppercase text-xs">
+                                            Level {gameState?.skills?.find(s => s.id === 'SCHOLAR')?.level || 1} Scholar
+                                        </p>
+                                    </div>
+                                    <div className="p-8 bg-[var(--background-secondary)] rounded-xl border border-[var(--background-modifier-border)] text-center">
+                                        <p className="text-[var(--text-muted)] italic">"The path reveals itself only as you walk it."</p>
+                                        <div className="mt-4 p-4 bg-[var(--background-primary)] rounded border border-[var(--background-modifier-border)]">
+                                            <h3 className="font-bold text-[var(--text-normal)]">Chapter 1: The Awakeining</h3>
+                                            <p className="text-sm text-[var(--text-muted)] mt-2">You have begun to document your life. The fog lifts.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === Tab.HISTORY && (
+                                <div className="animate-fade-in py-12">
+                                    <Chronicle
+                                        stats={persistentData?.history || {}}
+                                        onDayClick={(date) => console.log('Clicked', date)}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </ErrorBoundary>
+                </div>
+            </div>
+
+            {/* FLOATING NAVIGATION PILL */}
+            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50">
+                <div className="bg-[var(--background-secondary)]/80 backdrop-blur-xl border border-[var(--background-modifier-border)] px-3 py-2 rounded-[24px] shadow-xl flex items-center gap-1">
+                    {NAV_ITEMS.map(item => (
+                        <button
+                            key={item.tab}
+                            onClick={() => setActiveTab(item.tab)}
+                            className={`flex flex-col items-center justify-center w-14 h-14 rounded-[18px] transition-all duration-500 group relative
+                                ${activeTab === item.tab
+                                    ? 'bg-[var(--interactive-accent)] text-white shadow-lg scale-110'
+                                    : 'text-[var(--text-muted)] hover:bg-[var(--background-modifier-hover)]'
+                                }`}
+                        >
+                            <i className={`fa-solid ${item.img} text-lg mb-1 ${activeTab !== item.tab ? 'text-stone-500' : 'text-white'}`}></i>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* NPC DIALOGUE OVERLAY */}
+            <DialogueOverlay
+                isOpen={showDialogue}
+                speakerName="Scout"
+                text="The garden reflects your mind, traveler. Be still."
+                onClose={() => setShowDialogue(false)}
+            />
+        </div >
+    );
 };
 
 export default App;

@@ -3,8 +3,8 @@
   "name": "Life RPG",
   "version": "1.0.0",
   "minAppVersion": "0.15.0",
-  "description": "A gamified dashboard that tracks XP, Levels, and Skills based on your Markdown notes.",
-  "author": "Your Name",
-  "authorUrl": "https://github.com/yourname/life-rpg",
+  "description": "A comprehensive Life RPG system for Obsidian. Track habits, earn skills, collect loot, and build your Zen Garden.",
+  "author": "Antigravity",
+  "authorUrl": "https://github.com/example/life-rpg",
   "isDesktopOnly": false
 }

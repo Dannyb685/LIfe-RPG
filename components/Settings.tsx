@@ -1,118 +1,297 @@
-
-import React from 'react';
+import React, { useState } from 'react';
+import { LifeRPGData, VaultMapping } from '../types';
+import { SKILL_DEFINITIONS, GARDEN_THEMES } from '../constants';
+import ReviewQueue from './ReviewQueue';
 
 interface SettingsProps {
   defaultXp: number;
-  goldMultiplier: number;
   soundEnabled: boolean;
-  onSave: (newDefaultXp: number, newGoldMult: number, newSound: boolean) => void;
+  themeMode: 'MANUAL' | 'SMART' | 'RANDOM';
+  manualThemeId: string;
+  vaultMappings: VaultMapping[];
+  unknownSources?: Record<string, number>;
+  customMappings?: Record<string, any>;
+  debounceDelay?: number;
+  onSave: (settings: { defaultXp: number, soundEnabled: boolean, themeMode: 'MANUAL' | 'SMART' | 'RANDOM', manualThemeId: string, vaultMappings: VaultMapping[], customMappings: Record<string, any>, debounceDelay: number }) => void;
+  assetBasePath: string;
 }
 
-const Settings: React.FC<SettingsProps> = ({ defaultXp, goldMultiplier, soundEnabled, onSave }) => {
-  const [xp, setXp] = React.useState(defaultXp);
-  const [goldMult, setGoldMult] = React.useState(goldMultiplier);
-  const [sound, setSound] = React.useState(soundEnabled);
-  const [showGrid, setShowGrid] = React.useState(true); // New local setting simulation (would pass up in real app)
+const Settings: React.FC<SettingsProps> = ({ defaultXp, soundEnabled, themeMode = 'SMART', manualThemeId = 'classic', vaultMappings = [], customMappings = {}, unknownSources = {}, debounceDelay = 2000, onSave, assetBasePath }) => {
+  // ... existing hooks ...
+  const [localXp, setLocalXp] = useState(defaultXp);
+  const [localSound, setLocalSound] = useState(soundEnabled);
+  const [localThemeMode, setLocalThemeMode] = useState<'MANUAL' | 'SMART' | 'RANDOM'>(themeMode);
+  const [localManualThemeId, setLocalManualThemeId] = useState(manualThemeId);
+  const [localMappings, setLocalMappings] = useState<VaultMapping[]>(vaultMappings);
+  const [localCustomMappings, setLocalCustomMappings] = useState<Record<string, any>>(customMappings);
+  const [localDebounce, setLocalDebounce] = useState(debounceDelay);
+  const [showSaved, setShowSaved] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(xp, goldMult, sound);
+  // New Mapping Form State
+  const [newPattern, setNewPattern] = useState('');
+  const [newType, setNewType] = useState<'TAG' | 'FOLDER'>('TAG');
+  const [newSkill, setNewSkill] = useState(SKILL_DEFINITIONS[0].id);
+
+  const handleSave = () => {
+    onSave({
+      defaultXp: localXp,
+      soundEnabled: localSound,
+      themeMode: localThemeMode,
+      manualThemeId: localManualThemeId,
+      vaultMappings: localMappings,
+      customMappings: localCustomMappings,
+      debounceDelay: localDebounce
+    });
+    setShowSaved(true);
+    setTimeout(() => setShowSaved(false), 2000);
   };
 
+  const addMapping = () => {
+    // ... same ...
+    if (!newPattern) return;
+    const mapping: VaultMapping = {
+      id: Date.now().toString(),
+      type: newType,
+      pattern: newPattern,
+      skillId: newSkill,
+      xpPerWord: 0.1 // Default
+    };
+    setLocalMappings([...localMappings, mapping]);
+    setNewPattern('');
+  };
+
+  const removeMapping = (id: string) => {
+    setLocalMappings(localMappings.filter(m => m.id !== id));
+  };
+
+  const handleMapSource = (sourceKey: string, skillId: string, xp: number) => {
+    setLocalCustomMappings({
+      ...localCustomMappings,
+      [sourceKey]: { skillId, xpPerUnit: xp, type: 'COUNT' } // Defaulting to COUNT for now
+    });
+  };
+
+  const handleIgnoreSource = (sourceKey: string) => {
+    // ... same ...
+    setLocalCustomMappings({
+      ...localCustomMappings,
+      [sourceKey]: { skillId: 'NONE', xpPerUnit: 0, type: 'IGNORE' }
+    });
+  };
+
+  // Filter out unknown sources that have been locally mapped/ignored already
+  const filteredUnknowns = { ...unknownSources };
+  Object.keys(localCustomMappings).forEach(k => delete filteredUnknowns[k]);
+
   return (
-    <div className="max-w-2xl mx-auto bg-wood-pattern border-4 border-wood-black rounded-sm p-8 shadow-[8px_8px_0_rgba(0,0,0,0.5)] relative">
-      {/* Decorative Screws */}
-      <div className="absolute top-2 left-2 w-2 h-2 bg-[#8b7355] rounded-full shadow-inner border border-black/30"></div>
-      <div className="absolute top-2 right-2 w-2 h-2 bg-[#8b7355] rounded-full shadow-inner border border-black/30"></div>
-      <div className="absolute bottom-2 left-2 w-2 h-2 bg-[#8b7355] rounded-full shadow-inner border border-black/30"></div>
-      <div className="absolute bottom-2 right-2 w-2 h-2 bg-[#8b7355] rounded-full shadow-inner border border-black/30"></div>
+    <div className="max-w-xl mx-auto space-y-8 pb-12">
+      <div className="text-center">
+        <h2 className="text-3xl font-light text-[var(--text-normal)] mb-2">The Shrine</h2>
+        <div className="text-[var(--text-muted)] italic font-serif">"Adjust your path as the seasons change."</div>
+      </div>
 
-      <h2 className="text-2xl font-bold text-[#ff981f] mb-6 border-b-2 border-[#5d5447] pb-2 drop-shadow-text">
-        <i className="fa-solid fa-cog mr-2"></i> Game Settings
-      </h2>
-      
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Default XP */}
-        <div className="bg-[#2b2522] p-4 border border-[#5d5447] shadow-inner">
-          <label className="block text-[#dcdcdc] text-sm font-bold mb-2 uppercase tracking-wide">
-            Default Task XP Reward
-          </label>
-          <p className="text-[#9a9a9a] text-xs mb-3 font-mono">
-            How much XP should a task award if no specific XP value is defined in the markdown (e.g., "(+10 XP)")?
-          </p>
-          <div className="flex items-center gap-3">
-            <input 
-              type="number" 
-              min="1" 
-              max="1000"
-              value={xp}
-              onChange={(e) => setXp(parseInt(e.target.value) || 0)}
-              className="bg-[#1a1816] border-2 border-[#5d5447] text-[#00ff00] font-mono font-bold rounded px-3 py-2 w-24 focus:border-[#ff981f] focus:outline-none shadow-osrs-inset"
-            />
-            <span className="text-[#ff981f] font-bold text-sm">XP per task</span>
+      <div className="bg-[var(--background-primary-alt)] p-8 rounded-xl border border-[var(--background-modifier-border)] shadow-sm space-y-8">
+
+        {/* THEME SELECTOR */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <i className="fas fa-palette text-[var(--text-muted)]"></i>
+              <label className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Garden Theme</label>
+            </div>
+            <div className="flex bg-[var(--background-modifier-form-field)] rounded-lg p-1">
+              <button
+                onClick={() => setLocalThemeMode('SMART')}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${localThemeMode === 'SMART' ? 'bg-[var(--interactive-accent)] text-white shadow-sm' : 'text-[var(--text-muted)]'}`}
+              >
+                SMART
+              </button>
+              <button
+                onClick={() => setLocalThemeMode('MANUAL')}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${localThemeMode === 'MANUAL' ? 'bg-[var(--interactive-accent)] text-white shadow-sm' : 'text-[var(--text-muted)]'}`}
+              >
+                MANUAL
+              </button>
+            </div>
           </div>
+
+          {localThemeMode === 'SMART' && (
+            <div className="p-4 bg-[var(--background-secondary)] rounded-lg border border-[var(--background-modifier-border)] text-sm text-[var(--text-muted)] italic flex items-center justify-center gap-2">
+              <i className="fas fa-wand-magic-sparkles"></i>
+              <span>Theme changes with time of day and season.</span>
+            </div>
+          )}
+
+          {localThemeMode === 'MANUAL' && (
+            <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+              {GARDEN_THEMES.map(theme => (
+                <button
+                  key={theme.id}
+                  onClick={() => setLocalManualThemeId(theme.id)}
+                  className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${localManualThemeId === theme.id
+                    ? 'bg-[var(--interactive-accent)]/10 border-[var(--interactive-accent)]'
+                    : 'bg-[var(--background-secondary)] border-[var(--background-modifier-border)] hover:border-[var(--text-muted)]'}`}
+                >
+                  <div className={`w-8 h-8 rounded-md bg-cover bg-center shrink-0`} style={{ backgroundImage: `url("${assetBasePath}/${theme.file}")` }}></div>
+                  <div className="min-w-0">
+                    <div className={`text-xs font-bold truncate ${localManualThemeId === theme.id ? 'text-[var(--interactive-accent)]' : 'text-[var(--text-normal)]'}`}>{theme.name}</div>
+                    <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">{theme.style}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Gold Multiplier */}
-        <div className="bg-[#2b2522] p-4 border border-[#5d5447] shadow-inner">
-          <label className="block text-[#dcdcdc] text-sm font-bold mb-2 uppercase tracking-wide">
-            Gold Multiplier
-          </label>
-          <p className="text-[#9a9a9a] text-xs mb-3 font-mono">
-            Increase the amount of Gold earned per XP gained.
-          </p>
-          <div className="flex items-center gap-3">
-            <input 
-              type="number" 
-              min="0.1" 
-              max="10"
-              step="0.1"
-              value={goldMult}
-              onChange={(e) => setGoldMult(parseFloat(e.target.value) || 1)}
-              className="bg-[#1a1816] border-2 border-[#5d5447] text-[#00ff00] font-mono font-bold rounded px-3 py-2 w-24 focus:border-[#ff981f] focus:outline-none shadow-osrs-inset"
-            />
-            <span className="text-[#ff981f] font-bold text-sm">x Gold</span>
-          </div>
-        </div>
+        <hr className="border-[var(--background-modifier-border)]" />
 
         {/* Sound Toggle */}
-        <div className="bg-[#2b2522] p-4 border border-[#5d5447] shadow-inner flex items-center gap-4">
-           <div 
-                className={`w-14 h-8 rounded-full p-1 cursor-pointer transition-colors border-2 ${sound ? 'bg-green-800 border-green-600' : 'bg-red-900 border-red-700'}`} 
-                onClick={() => setSound(!sound)}
-            >
-              <div className={`w-5 h-5 rounded-full bg-[#dcdcdc] shadow-md transition-transform border border-black ${sound ? 'translate-x-6' : 'translate-x-0'}`}></div>
-           </div>
-           <div>
-               <label className="block text-[#dcdcdc] text-sm font-bold uppercase tracking-wide">Sound Effects</label>
-               <p className="text-[#9a9a9a] text-xs font-mono">Enable sounds for Focus Timer.</p>
-           </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-[var(--background-secondary)] text-[var(--text-muted)] flex items-center justify-center">
+              <i className={`fas ${localSound ? 'fa-volume-high' : 'fa-volume-xmark'}`}></i>
+            </div>
+            <div>
+              <div className="font-bold text-[var(--text-normal)]">Sound Effects</div>
+              <div className="text-xs text-[var(--text-muted)]">Enable ambient sounds and alerts</div>
+            </div>
+          </div>
+          <button
+            onClick={() => setLocalSound(!localSound)}
+            className={`w-12 h-6 rounded-full transition-colors relative ${localSound ? 'bg-[var(--interactive-accent)]' : 'bg-[var(--background-modifier-border)]'}`}
+          >
+            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${localSound ? 'left-7' : 'left-1'}`}></div>
+          </button>
         </div>
 
-        {/* Building Grid (Visual Preference) */}
-        <div className="bg-[#2b2522] p-4 border border-[#5d5447] shadow-inner flex items-center gap-4 opacity-70 hover:opacity-100 transition-opacity">
-           <div 
-                className={`w-14 h-8 rounded-full p-1 cursor-pointer transition-colors border-2 ${showGrid ? 'bg-blue-800 border-blue-600' : 'bg-gray-800 border-gray-600'}`} 
-                onClick={() => setShowGrid(!showGrid)}
-            >
-              <div className={`w-5 h-5 rounded-full bg-[#dcdcdc] shadow-md transition-transform border border-black ${showGrid ? 'translate-x-6' : 'translate-x-0'}`}></div>
-           </div>
-           <div>
-               <label className="block text-[#dcdcdc] text-sm font-bold uppercase tracking-wide">Show Construction Grid</label>
-               <p className="text-[#9a9a9a] text-xs font-mono">Highlights tile borders in Home Base (Currently Visual Only).</p>
-           </div>
-        </div>
+        <hr className="border-[var(--background-modifier-border)]" />
 
-        <div className="pt-4 border-t border-[#5d5447] flex justify-end">
-            <button 
-                type="submit"
-                className="bg-[#3e3226] border-2 border-[#5d5447] hover:bg-[#4a3f35] hover:border-[#ff981f] text-white font-bold py-3 px-8 rounded shadow-[2px_2px_0_#000] active:translate-y-1 active:shadow-none transition-all flex items-center gap-2"
+        {/* VAULT MAPPINGS SECTION */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <label className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Vault Connections</label>
+            <div className="text-xs text-[var(--text-muted)] italic">Map folders/tags to Skills</div>
+          </div>
+
+          <div className="space-y-2 mb-4">
+            {localMappings.map(m => (
+              <div key={m.id} className="flex items-center justify-between bg-[var(--background-secondary)] p-3 rounded-lg border border-[var(--background-modifier-border)]">
+                <div className="flex items-center gap-3">
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${m.type === 'TAG' ? 'bg-indigo-100/10 text-indigo-400' : 'bg-amber-100/10 text-amber-400'}`}>
+                    {m.type}
+                  </span>
+                  <span className="font-mono text-sm text-[var(--text-normal)]">{m.pattern}</span>
+                  <i className="fas fa-arrow-right text-[var(--text-muted)] text-xs"></i>
+                  <span className="font-bold text-[var(--text-normal)] text-sm capitalize">{m.skillId}</span>
+                </div>
+                <button onClick={() => removeMapping(m.id)} className="text-[var(--text-muted)] hover:text-red-500">
+                  <i className="fas fa-trash"></i>
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Add New Form */}
+          <div className="flex gap-2 p-2 bg-[var(--background-secondary)] rounded-lg">
+            <select
+              value={newType}
+              onChange={(e) => setNewType(e.target.value as 'TAG' | 'FOLDER')}
+              className="bg-[var(--background-primary)] border text-xs font-bold border-[var(--background-modifier-border)] rounded px-2 py-1 outline-none text-[var(--text-normal)]"
             >
-                <i className="fa-solid fa-save text-[#00ff00]"></i> 
-                <span>Save Changes</span>
+              <option value="TAG">TAG (#)</option>
+              <option value="FOLDER">FOLDER (/)</option>
+            </select>
+            <input
+              type="text"
+              placeholder={newType === 'TAG' ? "#gym" : "Journal/Daily"}
+              value={newPattern}
+              onChange={(e) => setNewPattern(e.target.value)}
+              className="flex-1 bg-[var(--background-primary)] border border-[var(--background-modifier-border)] rounded px-3 py-1 text-sm outline-none text-[var(--text-normal)]"
+            />
+            <select
+              value={newSkill}
+              onChange={(e) => setNewSkill(e.target.value)}
+              className="bg-[var(--background-primary)] border text-xs border-[var(--background-modifier-border)] rounded px-2 py-1 outline-none text-[var(--text-normal)] capitalize"
+            >
+              {Object.values(SKILL_DEFINITIONS).map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <button
+              onClick={addMapping}
+              className="w-8 h-8 rounded bg-[var(--interactive-accent)] text-white flex items-center justify-center hover:opacity-80"
+            >
+              <i className="fas fa-plus"></i>
             </button>
+          </div>
         </div>
-      </form>
+
+        <hr className="border-[var(--background-modifier-border)]" />
+
+        {/* PERFORMANCE / DEBOUNCE DELAY */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Performance Delay</label>
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min="500"
+              max="10000"
+              step="500"
+              value={localDebounce}
+              onChange={(e) => setLocalDebounce(Number(e.target.value))}
+              className="flex-1 h-2 bg-[var(--background-modifier-border)] rounded-lg appearance-none cursor-pointer accent-[var(--interactive-accent)]"
+            />
+            <div className="w-20 text-center font-mono font-bold text-[var(--text-normal)] text-sm border border-[var(--background-modifier-border)] rounded px-2 py-1">
+              {(localDebounce / 1000).toFixed(1)}s
+            </div>
+          </div>
+          <p className="text-xs text-[var(--text-muted)] mt-2">Adjust wait time after typing before updating stats. (Default: 2.0s)</p>
+        </div>
+
+        <hr className="border-[var(--background-modifier-border)]" />
+
+        {/* Default XP */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Default Task XP</label>
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min="1"
+              max="50"
+              value={localXp}
+              onChange={(e) => setLocalXp(Number(e.target.value))}
+              className="flex-1 h-2 bg-[var(--background-modifier-border)] rounded-lg appearance-none cursor-pointer accent-[var(--interactive-accent)]"
+            />
+            <div className="w-12 text-center font-mono font-bold text-[var(--text-normal)] text-lg border border-[var(--background-modifier-border)] rounded px-2 py-1">
+              {localXp}
+            </div>
+          </div>
+          <p className="text-xs text-[var(--text-muted)] mt-2">XP awarded for generic checked checkboxes.</p>
+        </div>
+
+        <hr className="border-[var(--background-modifier-border)]" />
+
+        {/* DATA REVIEW QUEUE */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-4">Data Review Queue</label>
+          <ReviewQueue
+            unknownSources={filteredUnknowns}
+            onMap={handleMapSource}
+            onIgnore={handleIgnoreSource}
+          />
+        </div>
+
+        <button
+          onClick={handleSave}
+          className="w-full py-4 bg-[var(--interactive-accent)] text-white rounded-lg font-bold uppercase tracking-widest hover:opacity-90 transition-all active:scale-[0.98]"
+        >
+          {showSaved ? (
+            <span className="flex items-center justify-center gap-2 text-white/80">
+              <i className="fas fa-check"></i> Changes Saved
+            </span>
+          ) : 'Save Configuration'}
+        </button>
+      </div>
     </div>
   );
 };

@@ -1,20 +1,28 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Life RPG for Obsidian (Sei-Katsu)
 
-# Run and deploy your AI Studio app
+Gamify your life with a Zen-inspired RPG system. Track habits, earn skills, collect loot, and build your inner garden.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/drive/1RwaFyC59NuNlf4UK5DI4oaDPolvLG-Hw
+- **Sei-Katsu (Life Cultivation)**: A beautiful dashboard visualizing your life balance.
+- **5 Rings System**: Track growth in Earth (Stability), Water (Flexibility), Fire (Passion), Wind (Freedom), and Void (Spirit).
+- **The Chronicle**: A GitHub-style heat map of your daily consistency.
+- **Inventory & Loot**: Complete tasks to find random items like Herbs, Ores, and Geodes.
+- **Zen Garden**: Watch your garden grow as your habits improve. Features an autonomous pet Scout.
+- **Interactive**: click elements, cultivate your garden, and clear your mind.
 
-## Run Locally
+## Installation
 
-**Prerequisites:**  Node.js
+1. Copy `main.js`, `manifest.json`, and `styles.css` to `.obsidian/plugins/life-rpg-obsidian/`.
+2. Reload Obsidian.
+3. Enable the plugin in Settings > Community Plugins.
 
+## Usage
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+- **Ribbon Icon**: Click the leaf icon to open the Dashboard.
+- **Habit Tracking**: Define habits in `Settings` and tag your daily notes or use frontmatter keys.
+- **Tasks**: Check off `- [ ]` items in your vault to earn XP and find loot.
+
+## Credits
+
+Created by Antigravity.

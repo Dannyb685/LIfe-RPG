@@ -1,24 +1,25 @@
 
-import { LifeRPGData } from '../types';
+import { LifeRPGData, GameState } from '../types';
+import { HABIT_DEFINITIONS } from '../constants';
 
 const DATA_FILE_PATH = 'life-rpg-data.json';
 
-// Default state if no save file exists
+// Default state if no save file exists - Sanitized for the Sanctuary Audit
 const DEFAULT_DATA: LifeRPGData = {
-    gold: 0,
     baseLayout: [
         { x: 12, y: 12, buildingId: 'house_cottage', id: 'starter_house' },
-        { x: 11, y: 12, buildingId: 'path_dirt', id: 'p1' },
-        { x: 13, y: 12, buildingId: 'tree_pine', id: 't1' },
     ],
     activeBuffs: [],
-    decayDebt: {},
-    skillUpdateMap: {},
-    quests: {}, // Initialize empty quests map
+    history: {},
     settings: {
-        defaultXp: 5,
-        goldMultiplier: 1,
-        soundEnabled: true
+        defaultXp: 10,
+        soundEnabled: true,
+        themeMode: 'SMART',
+        manualThemeId: 'classic',
+        habits: HABIT_DEFINITIONS,
+        vaultMappings: [],
+        customMappings: {},
+        debounceDelay: 2000
     }
 };
 
@@ -27,10 +28,9 @@ const DEFAULT_DATA: LifeRPGData = {
  */
 export const saveGameData = async (plugin: any, data: Partial<LifeRPGData>) => {
     try {
-        // Load existing data first to merge (prevent overwriting unrelated fields if partial)
         const current = await loadGameData(plugin);
         const merged = { ...current, ...data };
-        
+
         await plugin.app.vault.adapter.write(DATA_FILE_PATH, JSON.stringify(merged, null, 2));
     } catch (e) {
         console.error("LifeRPG: Failed to save game data", e);
@@ -49,13 +49,12 @@ export const loadGameData = async (plugin: any): Promise<LifeRPGData> => {
 
         const content = await plugin.app.vault.adapter.read(DATA_FILE_PATH);
         const data = JSON.parse(content);
-        
+
         // Merge with defaults to ensure new fields are present
-        return { 
-            ...DEFAULT_DATA, 
-            ...data, 
-            quests: { ...DEFAULT_DATA.quests, ...(data.quests || {}) }, // Merge quests safely
-            settings: { ...DEFAULT_DATA.settings, ...(data.settings || {}) } 
+        return {
+            ...DEFAULT_DATA,
+            ...data,
+            settings: { ...DEFAULT_DATA.settings, ...(data.settings || {}) }
         };
     } catch (e) {
         console.error("LifeRPG: Failed to load game data", e);
